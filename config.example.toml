@@ -1,0 +1,30 @@
+# ~/.statgen-mcp/config.toml
+# Copy this file to ~/.statgen-mcp/config.toml and edit as needed.
+
+[executor]
+# Options: local | slurm | aws | gcp | azure
+backend = "local"
+
+[tools]
+# plink2 handles QC, relatedness (--king-cutoff), and PCA
+plink2 = "plink2"
+# flashpca is optional - only needed for very large cohorts (>100k samples)
+flashpca = "flashpca"
+
+# Where to write run outputs (timestamped subdirectories per job)
+output_dir = "~/statgen-mcp-runs"
+
+
+# Uncomment when using SLURM
+# [slurm]
+# partition = "normal"
+# account = "myaccount"
+# default_memory = "16G"
+# default_cpus = 4
+
+
+# Uncomment when using AWS Batch
+# [aws]
+# region = "us-east-1"
+# job_queue = "statgen-queue"
+# job_definition = "statgen-plink2"
