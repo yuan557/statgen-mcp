@@ -15,6 +15,7 @@ MCP server for statistical genetics. Lets Claude orchestrate your analysis pipel
 
 - Python >= 3.11
 - [PLINK2](https://www.cog-genomics.org/plink/2.0/) on your PATH
+- [bcftools](https://samtools.github.io/bcftools/) on your PATH (required for variant source filtering)
 
 ## Installation
 

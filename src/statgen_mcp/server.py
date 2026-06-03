@@ -27,6 +27,9 @@ async def list_tools() -> list[Tool]:
                 "Filter a VCF or PLINK dataset for quality control. "
                 "Applies MAF, per-sample missingness (MIND), per-variant missingness (GENO), "
                 "and Hardy-Weinberg equilibrium (HWE) filters using PLINK2. "
+                "For VCF input, optionally pre-filters variants by source: "
+                "'genotyped' (directly typed array variants only), "
+                "'imputed' (imputation INFO score >= threshold), or 'wgs' (no INFO filter). "
                 "Outputs a clean PLINK bed/bim/fam dataset."
             ),
             inputSchema=VcfQcInput.model_json_schema(),
@@ -94,7 +97,7 @@ def _check_tools() -> dict:
     import shutil
     import subprocess
 
-    tools = ["plink2", "flashpca"]
+    tools = ["plink2", "bcftools", "flashpca"]
     results = {}
 
     for tool in tools:

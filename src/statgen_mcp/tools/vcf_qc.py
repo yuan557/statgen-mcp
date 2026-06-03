@@ -6,9 +6,9 @@ Also handles VCF -> PLINK conversion if needed.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from statgen_mcp.config import get_config
 from statgen_mcp.executors.base import JobResult, get_executor
@@ -33,6 +33,27 @@ class VcfQcInput(BaseModel):
     geno: float = Field(default=0.05, description="Per-variant missingness threshold (0-1)")
     hwe: float = Field(default=1e-6, description="Hardy-Weinberg p-value threshold")
     hwe_midp: bool = Field(default=True, description="Use mid-p adjustment for HWE test")
+    variant_source: Literal["wgs", "genotyped", "imputed"] | None = Field(
+        default=None,
+        description=(
+            "Variant source type. 'wgs': no INFO filtering. "
+            "'genotyped': keep only directly genotyped variants (array typed flag). "
+            "'imputed': keep only variants with INFO score >= min_info_score. "
+            "Only applies to VCF input; ignored for PLINK input."
+        ),
+    )
+    min_info_score: float | None = Field(
+        default=None,
+        description="Minimum imputation INFO score (required when variant_source='imputed')",
+    )
+    info_field: str = Field(
+        default="R2",
+        description="INFO field name for imputation quality (e.g. R2 for Minimac, INFO for IMPUTE2, DR2 for Beagle)",
+    )
+    typed_flag: str = Field(
+        default="TYPED",
+        description="INFO flag name for directly genotyped variants (e.g. TYPED for Minimac, GENOTYPED for IMPUTE4)",
+    )
     dry_run: bool = Field(default=False, description="Preview command without running")
 
     @field_validator("maf")
@@ -49,6 +70,12 @@ class VcfQcInput(BaseModel):
             raise ValueError("must be between 0 and 1")
         return v
 
+    @model_validator(mode="after")
+    def check_imputed_has_score(self) -> "VcfQcInput":
+        if self.variant_source == "imputed" and self.min_info_score is None:
+            raise ValueError("min_info_score is required when variant_source='imputed'")
+        return self
+
 
 class VcfQcResult(BaseModel):
     status: str
@@ -63,6 +90,15 @@ class VcfQcResult(BaseModel):
     error_message: str | None = None
     command_preview: str | None = None
     runtime_seconds: float | None = None
+    variant_source: str | None = None
+
+
+def _bcftools_filter_expr(params: VcfQcInput) -> str | None:
+    if params.variant_source == "genotyped":
+        return f"INFO/{params.typed_flag}=1"
+    if params.variant_source == "imputed":
+        return f"INFO/{params.info_field} >= {params.min_info_score}"
+    return None
 
 
 def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
@@ -88,13 +124,58 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
 
     run_dir = make_run_dir(cfg.output_dir, "vcf_qc")
     out = run_dir / Path(params.output_prefix).name
+    executor = get_executor(cfg.executor.backend)
+
+    warnings = []
+    filter_expr = _bcftools_filter_expr(params) if fmt == "vcf" else None
+
+    if params.variant_source and fmt == "plink":
+        warnings.append("variant_source filtering requires VCF input and was skipped for PLINK input")
+
+    vcf_input = params.input_prefix
+
+    if filter_expr:
+        try:
+            bcftools = require_binary("bcftools")
+        except ValidationError as e:
+            return VcfQcResult(status="failed", error_message=str(e))
+
+        filtered_vcf = str(run_dir / "filtered.vcf.gz")
+        bcftools_cmd = [bcftools, "view", "-i", filter_expr, "-Oz", "-o", filtered_vcf, params.input_prefix]
+
+        if params.dry_run:
+            plink2_preview = (
+                f"plink2 --vcf {filtered_vcf} --maf {params.maf} --mind {params.mind} "
+                f"--geno {params.geno} --hwe {params.hwe} --make-bed --out {out}"
+            )
+            return VcfQcResult(
+                status="dry_run",
+                command_preview=(
+                    f"Step 1 (bcftools filter):\n{' '.join(bcftools_cmd)}\n\n"
+                    f"Step 2 (PLINK2 QC):\n{plink2_preview}"
+                ),
+                filters_applied={
+                    "variant_source": params.variant_source,
+                    "filter_expr": filter_expr,
+                    "maf": params.maf,
+                    "mind": params.mind,
+                    "geno": params.geno,
+                    "hwe": params.hwe,
+                },
+                variant_source=params.variant_source,
+            )
+
+        bcftools_job = executor.run(bcftools_cmd, "bcftools_filter", run_dir)
+        if not bcftools_job.ok:
+            return VcfQcResult(status="failed", error_message=bcftools_job.error_message or bcftools_job.stderr)
+
+        vcf_input = filtered_vcf
 
     cmd = [plink2]
-
     if fmt == "plink":
         cmd += ["--bfile", params.input_prefix]
     else:
-        cmd += ["--vcf", params.input_prefix]
+        cmd += ["--vcf", vcf_input]
 
     cmd += [
         "--maf", str(params.maf),
@@ -102,21 +183,12 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
         "--geno", str(params.geno),
         "--hwe", str(params.hwe),
     ]
-
     if params.hwe_midp:
         cmd += ["midp"]
-
     cmd += ["--make-bed", "--out", str(out)]
 
-    executor = get_executor(cfg.executor.backend)
-    job: JobResult = executor.run(
-        cmd=cmd,
-        job_name="vcf_qc",
-        work_dir=run_dir,
-        dry_run=params.dry_run,
-    )
-
     if params.dry_run:
+        job: JobResult = executor.run(cmd=cmd, job_name="vcf_qc", work_dir=run_dir, dry_run=True)
         return VcfQcResult(
             status="dry_run",
             command_preview=job.stdout,
@@ -126,19 +198,18 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
                 "geno": params.geno,
                 "hwe": params.hwe,
             },
+            variant_source=params.variant_source,
         )
 
+    job = executor.run(cmd=cmd, job_name="vcf_qc", work_dir=run_dir)
+
     if not job.ok:
-        return VcfQcResult(
-            status="failed",
-            error_message=job.error_message or job.stderr,
-        )
+        return VcfQcResult(status="failed", error_message=job.error_message or job.stderr)
 
     log_path = Path(str(out) + ".log")
     log_summary = parse_plink2_log(log_path)
     output_files = list_output_files(run_dir, [".bed", ".bim", ".fam", ".log"])
 
-    warnings = []
     if log_summary.get("samples_removed_missing", 0) > 0:
         warnings.append(
             f"{log_summary['samples_removed_missing']} samples removed due to high missingness (--mind {params.mind})"
@@ -153,6 +224,7 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
         samples_before=log_summary.get("samples"),
         log_summary=log_summary,
         filters_applied={
+            "variant_source": params.variant_source,
             "maf": params.maf,
             "mind": params.mind,
             "geno": params.geno,
@@ -160,4 +232,5 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
         },
         warnings=warnings,
         runtime_seconds=job.runtime_seconds,
+        variant_source=params.variant_source,
     )
