@@ -58,6 +58,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 - Heritability (LDSC, GCTA)
 - SLURM executor
 - AWS Batch executor
+- PRS (clump + threshold via PLINK2, supports internal and external GWAS summary stats)
 - Plotting (PCA, Manhattan, QQ)
 
 ## Compliance note
