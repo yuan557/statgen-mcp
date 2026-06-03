@@ -8,7 +8,7 @@ MCP server for statistical genetics. Lets Claude orchestrate your analysis pipel
 |------|-------------|
 | `vcf_qc` | MAF, MIND, GENO, HWE filtering via PLINK2 |
 | `king_cutoff` | Relatedness filtering via PLINK2 --king-cutoff |
-| `run_pca` | PCA with optional LD pruning via PLINK2 |
+| `run_pca` | PCA on LD-pruned variants via PLINK2 |
 | `check_tools` | Verify required binaries are installed |
 
 ## Requirements

@@ -1,7 +1,4 @@
-"""
-PCA via PLINK2 --pca.
-LD prunes before running PCA by default.
-"""
+"""PCA via PLINK2 --pca. Always LD-prunes before running PCA."""
 
 from __future__ import annotations
 
@@ -19,10 +16,6 @@ class PcaInput(BaseModel):
     input_prefix: str = Field(description="PLINK prefix (without .bed)")
     output_prefix: str = Field(description="Output prefix for PCA files")
     n_pcs: int = Field(default=20, description="Number of principal components to compute")
-    ld_prune: bool = Field(
-        default=True,
-        description="LD-prune before PCA (strongly recommended). Uses --indep-pairwise 200 50 0.2",
-    )
     ld_window: int = Field(default=200, description="LD pruning window size in variants")
     ld_step: int = Field(default=50, description="LD pruning step size")
     ld_r2: float = Field(default=0.2, description="LD pruning r2 threshold")
@@ -39,7 +32,7 @@ class PcaResult(BaseModel):
     output_files: list[str] = []
     n_pcs: int | None = None
     n_samples: int | None = None
-    ld_pruned: bool = False
+    ld_pruned: bool = True
     log_summary: dict = {}
     error_message: str | None = None
     command_preview: str | None = None
@@ -64,49 +57,42 @@ def run_pca(params: PcaInput) -> PcaResult:
     executor = get_executor(cfg.executor.backend)
     pruned_prefix = str(out) + "_pruned"
 
-    if params.ld_prune:
-        prune_cmd = [
-            plink2,
-            "--bfile", params.input_prefix,
-            "--indep-pairwise",
-            str(params.ld_window),
-            str(params.ld_step),
-            str(params.ld_r2),
-            "--out", str(out) + "_prune",
-        ]
+    prune_cmd = [
+        plink2,
+        "--bfile", params.input_prefix,
+        "--indep-pairwise",
+        str(params.ld_window),
+        str(params.ld_step),
+        str(params.ld_r2),
+        "--out", str(out) + "_prune",
+    ]
 
-        if params.dry_run:
-            return PcaResult(
-                status="dry_run",
-                command_preview=(
-                    f"Step 1 (LD prune):\n{' '.join(str(c) for c in prune_cmd)}\n\n"
-                    f"Step 2 (PCA): plink2 --bfile {pruned_prefix} --pca {params.n_pcs} --out {out}"
-                ),
-                n_pcs=params.n_pcs,
-                ld_pruned=True,
-            )
+    if params.dry_run:
+        return PcaResult(
+            status="dry_run",
+            command_preview=(
+                f"Step 1 (LD prune):\n{' '.join(str(c) for c in prune_cmd)}\n\n"
+                f"Step 2 (PCA): plink2 --bfile {pruned_prefix} --pca {params.n_pcs} --out {out}"
+            ),
+            n_pcs=params.n_pcs,
+        )
 
-        prune_job = executor.run(prune_cmd, "ld_prune", run_dir)
-        if not prune_job.ok:
-            return PcaResult(status="failed", error_message=prune_job.error_message or prune_job.stderr)
+    prune_job = executor.run(prune_cmd, "ld_prune", run_dir)
+    if not prune_job.ok:
+        return PcaResult(status="failed", error_message=prune_job.error_message or prune_job.stderr)
 
-        extract_cmd = [
-            plink2,
-            "--bfile", params.input_prefix,
-            "--extract", str(out) + "_prune.prune.in",
-            "--make-bed",
-            "--out", pruned_prefix,
-        ]
-        extract_job = executor.run(extract_cmd, "ld_extract", run_dir)
-        if not extract_job.ok:
-            return PcaResult(status="failed", error_message=extract_job.error_message or extract_job.stderr)
+    extract_cmd = [
+        plink2,
+        "--bfile", params.input_prefix,
+        "--extract", str(out) + "_prune.prune.in",
+        "--make-bed",
+        "--out", pruned_prefix,
+    ]
+    extract_job = executor.run(extract_cmd, "ld_extract", run_dir)
+    if not extract_job.ok:
+        return PcaResult(status="failed", error_message=extract_job.error_message or extract_job.stderr)
 
-        pca_input = pruned_prefix
-    else:
-        if params.dry_run:
-            pca_cmd_str = f"plink2 --bfile {params.input_prefix} --pca {params.n_pcs} --out {out}"
-            return PcaResult(status="dry_run", command_preview=pca_cmd_str, n_pcs=params.n_pcs)
-        pca_input = params.input_prefix
+    pca_input = pruned_prefix
 
     pca_cmd = [
         plink2,
@@ -131,7 +117,7 @@ def run_pca(params: PcaInput) -> PcaResult:
         output_files=output_files,
         n_pcs=params.n_pcs,
         n_samples=log_summary.get("samples"),
-        ld_pruned=params.ld_prune,
+        ld_pruned=True,
         log_summary=log_summary,
         runtime_seconds=pca_job.runtime_seconds,
     )
