@@ -198,6 +198,7 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
                 "geno": params.geno,
                 "hwe": params.hwe,
             },
+            warnings=warnings,
             variant_source=params.variant_source,
         )
 
