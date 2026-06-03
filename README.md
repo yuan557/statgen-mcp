@@ -58,6 +58,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 - Heritability (LDSC, GCTA)
 - SLURM executor
 - AWS Batch executor
+- Plotting (PCA, Manhattan, QQ)
 
 ## Compliance note
 

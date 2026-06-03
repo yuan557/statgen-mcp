@@ -27,5 +27,8 @@ statgen-mcp-runs/
 .DS_Store
 Thumbs.db
 
+# scripts (local dev/test scripts)
+scripts/
+
 # claude.md
 CLAUDE.md
