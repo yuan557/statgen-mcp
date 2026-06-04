@@ -6,6 +6,26 @@ from statgen_mcp.tools.filter_samples import FilterSamplesInput, run_filter_samp
 from statgen_mcp.tools.king import KingInput, run_king_cutoff
 from statgen_mcp.tools.pca import PcaInput, run_pca
 from statgen_mcp.tools.vcf_qc import VcfQcInput, run_vcf_qc
+from statgen_mcp.utils.file_io import parse_plink2_log
+
+
+# ---------------------------------------------------------------------------
+# parse_plink2_log
+# ---------------------------------------------------------------------------
+
+def test_parse_plink2_log_sample_counts(tmp_path):
+    log = tmp_path / "test.log"
+    log.write_text(
+        "3202 samples (1601 females, 1601 males) loaded from .fam.\n"
+        "3102 samples remaining after main filters.\n"
+        "800000 variants loaded from .bim file.\n"
+        "750000 variants remaining after main filters.\n"
+    )
+    result = parse_plink2_log(log)
+    assert result["samples"] == 3202
+    assert result["samples_after"] == 3102
+    assert result["variants_loaded"] == 800000
+    assert result["variants_remaining"] == 750000
 
 
 # ---------------------------------------------------------------------------

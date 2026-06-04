@@ -43,6 +43,10 @@ def parse_plink2_log(log_path: Path) -> dict:
     if m:
         result["variants_remaining"] = int(m.group(1))
 
+    m = re.search(r"(\d+) sample[s]? remaining after main filters", text)
+    if m:
+        result["samples_after"] = int(m.group(1))
+
     m = re.search(r"(\d+) sample[s]? removed due to missing", text)
     if m:
         result["samples_removed_missing"] = int(m.group(1))

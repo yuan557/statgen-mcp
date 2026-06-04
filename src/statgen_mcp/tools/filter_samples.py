@@ -93,7 +93,7 @@ def run_filter_samples(params: FilterSamplesInput) -> FilterSamplesResult:
     output_files = list_output_files(run_dir, [".bed", ".bim", ".fam", ".log"])
 
     samples_before = log_summary.get("samples")
-    samples_after = log_summary.get("samples_after") or log_summary.get("samples")
+    samples_after = log_summary.get("samples_after")
     samples_removed = (
         (samples_before - samples_after)
         if samples_before is not None and samples_after is not None
