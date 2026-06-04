@@ -1,9 +1,9 @@
 # statgen-mcp
 
-An MCP server that lets Claude act as an adaptive orchestrator for statistical genetics pipelines. Instead of writing a Snakefile, you tell Claude what you want — it calls the tools, reads intermediate outputs, and adjusts parameters along the way.
+An MCP server that lets Claude act as an adaptive orchestrator for statistical genetics pipelines. Instead of writing a Snakefile, you tell Claude what you want - it calls the tools, reads intermediate outputs, and adjusts parameters along the way.
 
 **Example:** "QC the imputed VCF, remove related samples, run PCA, then run GWAS on BMI adjusting for age, sex, and PCs."
-Claude will chain `vcf_qc → king_cutoff → filter_samples → run_pca → run_gwas`, pick `n_pcs` from the eigenvalue curve, and flag anything unexpected in the QC logs.
+Claude will chain `vcf_qc`, `king_cutoff`, `filter_samples`, `run_pca`, and `run_gwas`, pick `n_pcs` from the eigenvalue curve, and flag anything unexpected in the QC logs.
 
 ## Tools
 
@@ -12,7 +12,7 @@ Claude will chain `vcf_qc → king_cutoff → filter_samples → run_pca → run
 | `vcf_qc` | MAF, MIND, GENO, HWE filtering via PLINK2. Pre-filters VCF by variant source (genotyped / imputed INFO score / WGS) via bcftools. |
 | `king_cutoff` | Relatedness analysis via PLINK2 KING. Report-only mode or filter mode (removes one sample per related pair). |
 | `het_check` | Heterozygosity QC via PLINK2 `--het`. Flags contaminated samples (excess het) and inbred samples (deficient het) by F statistic SD cutoff. Writes a remove file for `filter_samples`. |
-| `filter_samples` | Keep or remove samples by FID/IID list — ancestry subsets, PCA outliers, kinship exclusions. |
+| `filter_samples` | Keep or remove samples by FID/IID list: ancestry subsets, PCA outliers, kinship exclusions. |
 | `run_pca` | LD-prune then PCA via PLINK2. Optionally excludes high-LD regions (MHC, inversions). Outputs `.eigenvec` / `.eigenval`. |
 | `run_gwas` | PLINK2 `--glm` per chromosome. Merges user covariates + PCA eigenvec internally. Firth fallback for binary traits. |
 | `plot_pca` | PCA scatter plots coloured by population label. |
@@ -22,22 +22,22 @@ Claude will chain `vcf_qc → king_cutoff → filter_samples → run_pca → run
 
 ## Intended pipeline order
 
-**Step 1 — Variant QC**
+**Step 1: Variant QC**
 Run `vcf_qc` on genotyped or high-confidence imputed variants (INFO >= 0.99). Outputs a clean PLINK dataset.
 
-**Step 2 — Sample QC** (run all three, collect remove files)
-- `het_check` — flag contaminated samples (excess heterozygosity) and inbred samples (deficient heterozygosity)
-- `king_cutoff` — identify cryptic relatives
+**Step 2: Sample QC** (run all, collect remove files)
+- `het_check`: flag contaminated samples (excess heterozygosity) and inbred samples (deficient heterozygosity)
+- `king_cutoff`: identify cryptic relatives
 - *(optional)* manual ancestry filtering using population labels
 
-**Step 3 — Apply exclusions**
+**Step 3: Apply exclusions**
 Pass the remove files from step 2 to `filter_samples`.
 
-**Step 4 — PCA**
+**Step 4: PCA**
 Run `run_pca` on the clean, filtered dataset. Review `plot_pca`. Choose n_pcs from the eigenvalue curve.
 
-**Step 5 — GWAS**
-Run `run_gwas` per chromosome on imputed variants (INFO >= 0.3–0.8). Pass PCs as covariates. Review `plot_manhattan` and `plot_qq`; check lambda GC.
+**Step 5: GWAS**
+Run `run_gwas` per chromosome on imputed variants (INFO >= 0.3-0.8). Pass PCs as covariates. Review `plot_gwas` and `plot_qq`; check lambda GC.
 
 ## Requirements
 
@@ -70,7 +70,7 @@ mkdir -p ~/.statgen-mcp
 cp config.example.toml ~/.statgen-mcp/config.toml
 ```
 
-Output files go to `~/statgen-mcp-runs/` by default (one timestamped subdirectory per tool call). SLURM submission is supported — see `config.example.toml`.
+Output files go to `~/statgen-mcp-runs/` by default (one timestamped subdirectory per tool call). SLURM submission is supported - see `config.example.toml`.
 
 ## Claude Desktop / Claude Code setup
 
@@ -90,9 +90,9 @@ For Claude Code (CLI), add to `.mcp.json` in your project root or `~/.claude.jso
 
 ## Roadmap
 
-- `merge_plink` — merge per-chromosome PLINK files for genome-wide PCA/KING
-- `sanity_check` — sex concordance across phenotype file, .fam, and chrX
-- `plot_kinship` — kinship histogram and IBS0 vs kinship scatter from `.kin0`
+- `merge_plink`: merge per-chromosome PLINK files for genome-wide PCA/KING
+- `sanity_check`: sex concordance across phenotype file, .fam, and chrX
+- `plot_kinship`: kinship histogram and IBS0 vs kinship scatter from `.kin0`
 - PRS (clump + threshold, internal and external summary stats)
 - Fine-mapping and conditional analysis
 - Heritability (LDSC, GCTA)
