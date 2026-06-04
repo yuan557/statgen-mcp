@@ -23,6 +23,14 @@ class PcaInput(BaseModel):
         default=False,
         description="Use --pca approx (faster for very large datasets, slight accuracy tradeoff)",
     )
+    high_ld_file: str | None = Field(
+        default=None,
+        description=(
+            "Path to high-LD regions file to exclude before LD pruning (PLINK2 range format: CHR START END NAME). "
+            "Strongly recommended for PCA — MHC (chr6:25-35Mb) and inversion regions can drive spurious PCs. "
+            "GRCh38 region files are available from Price et al. 2008 / Anderson et al. 2010 or the plinkQC R package."
+        ),
+    )
     dry_run: bool = Field(default=False)
 
 
@@ -64,14 +72,17 @@ def run_pca(params: PcaInput) -> PcaResult:
         str(params.ld_window),
         str(params.ld_step),
         str(params.ld_r2),
-        "--out", str(out) + "_prune",
     ]
+    if params.high_ld_file:
+        prune_cmd += ["--exclude", "range", params.high_ld_file]
+    prune_cmd += ["--out", str(out) + "_prune"]
 
     if params.dry_run:
+        ld_note = f" (excluding high-LD regions: {params.high_ld_file})" if params.high_ld_file else ""
         return PcaResult(
             status="dry_run",
             command_preview=(
-                f"Step 1 (LD prune):\n{' '.join(str(c) for c in prune_cmd)}\n\n"
+                f"Step 1 (LD prune{ld_note}):\n{' '.join(str(c) for c in prune_cmd)}\n\n"
                 f"Step 2 (PCA): plink2 --bfile {pruned_prefix} --pca {params.n_pcs} --out {out}"
             ),
             n_pcs=params.n_pcs,

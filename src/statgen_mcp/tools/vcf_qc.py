@@ -33,6 +33,22 @@ class VcfQcInput(BaseModel):
     geno: float = Field(default=0.05, description="Per-variant missingness threshold (0-1)")
     hwe: float = Field(default=1e-6, description="Hardy-Weinberg p-value threshold")
     hwe_midp: bool = Field(default=True, description="Use mid-p adjustment for HWE test")
+    hwe_ctrl_only: bool = Field(
+        default=False,
+        description=(
+            "Apply HWE filter to controls only (recommended for case-control GWAS). "
+            "Cases can deviate from HWE at disease loci — filtering them removes true signal. "
+            "Ignored when no case-control phenotype is present (e.g. WGS reference panels)."
+        ),
+    )
+    biallelic_only: bool = Field(
+        default=False,
+        description="Keep only biallelic variants (--max-alleles 2). Recommended for KING and PCA.",
+    )
+    snps_only: bool = Field(
+        default=False,
+        description="Keep only SNPs, exclude indels (--snps-only just-acgt). Combine with biallelic_only for strictest filtering.",
+    )
     variant_source: Literal["wgs", "genotyped", "imputed"] | None = Field(
         default=None,
         description=(
@@ -148,9 +164,18 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
         bcftools_cmd = [bcftools, "view", "-i", filter_expr, "-Oz", "-o", filtered_vcf, params.input_prefix]
 
         if params.dry_run:
+            hwe_modifiers = []
+            if params.hwe_midp:
+                hwe_modifiers.append("midp")
+            if params.hwe_ctrl_only:
+                hwe_modifiers.append("ctrl-only")
+            extra = " ".join(hwe_modifiers)
             plink2_preview = (
                 f"plink2 --vcf {filtered_vcf} --maf {params.maf} --mind {params.mind} "
-                f"--geno {params.geno} --hwe {params.hwe} --make-bed --out {out}"
+                f"--geno {params.geno} --hwe {params.hwe}{' ' + extra if extra else ''}"
+                + (" --max-alleles 2" if params.biallelic_only else "")
+                + (" --snps-only just-acgt" if params.snps_only else "")
+                + f" --make-bed --out {out}"
             )
             return VcfQcResult(
                 status="dry_run",
@@ -189,6 +214,12 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
     ]
     if params.hwe_midp:
         cmd += ["midp"]
+    if params.hwe_ctrl_only:
+        cmd += ["ctrl-only"]
+    if params.biallelic_only:
+        cmd += ["--max-alleles", "2"]
+    if params.snps_only:
+        cmd += ["--snps-only", "just-acgt"]
     cmd += ["--make-bed", "--out", str(out)]
 
     if params.dry_run:

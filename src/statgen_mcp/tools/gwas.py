@@ -167,6 +167,7 @@ def run_gwas(params: GwasInput) -> GwasResult:
     cmd = [
         plink2,
         "--bfile", params.input_prefix,
+        "--no-psam-pheno",
         "--pheno", params.pheno_file,
     ]
     if params.pheno_name:

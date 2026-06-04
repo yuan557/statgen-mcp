@@ -55,6 +55,36 @@ def test_vcf_qc_imputed_with_score_valid():
     assert params.min_info_score == 0.99
 
 
+def test_vcf_qc_hwe_ctrl_only_dry_run(tmp_path):
+    for ext in [".bed", ".bim", ".fam"]:
+        (tmp_path / f"data{ext}").touch()
+    params = VcfQcInput(
+        input_prefix=str(tmp_path / "data"),
+        output_prefix="out",
+        hwe_ctrl_only=True,
+        dry_run=True,
+    )
+    result = run_vcf_qc(params)
+    assert result.status == "dry_run"
+    assert "ctrl-only" in result.command_preview
+
+
+def test_vcf_qc_biallelic_snps_dry_run(tmp_path):
+    for ext in [".bed", ".bim", ".fam"]:
+        (tmp_path / f"data{ext}").touch()
+    params = VcfQcInput(
+        input_prefix=str(tmp_path / "data"),
+        output_prefix="out",
+        biallelic_only=True,
+        snps_only=True,
+        dry_run=True,
+    )
+    result = run_vcf_qc(params)
+    assert result.status == "dry_run"
+    assert "--max-alleles" in result.command_preview
+    assert "--snps-only" in result.command_preview
+
+
 # ---------------------------------------------------------------------------
 # vcf_qc runtime (dry_run)
 # ---------------------------------------------------------------------------
@@ -321,6 +351,7 @@ def test_gwas_dry_run_no_covars(tmp_path, monkeypatch):
     assert "hide-covar" in result.command_preview
     assert "firth-fallback" in result.command_preview
     assert "--covar" not in result.command_preview
+    assert "--no-psam-pheno" in result.command_preview
 
 
 def test_gwas_dry_run_with_pheno_name(tmp_path, monkeypatch):
@@ -462,6 +493,24 @@ def test_pca_defaults():
     assert params.n_pcs == 20
     assert params.ld_r2 == 0.2
     assert params.ld_window == 200
+    assert params.high_ld_file is None
+
+
+def test_pca_high_ld_dry_run(tmp_path):
+    for ext in [".bed", ".bim", ".fam"]:
+        (tmp_path / f"data{ext}").touch()
+    ld_file = tmp_path / "high_ld.txt"
+    ld_file.write_text("6\t25000000\t35000000\tMHC\n")
+    params = PcaInput(
+        input_prefix=str(tmp_path / "data"),
+        output_prefix="out",
+        high_ld_file=str(ld_file),
+        dry_run=True,
+    )
+    result = run_pca(params)
+    assert result.status == "dry_run"
+    assert "--exclude" in result.command_preview
+    assert "range" in result.command_preview
 
 
 def test_pca_dry_run(tmp_path):
