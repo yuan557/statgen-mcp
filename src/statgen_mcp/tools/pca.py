@@ -7,7 +7,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 from statgen_mcp.config import get_config
-from statgen_mcp.executors.base import JobResult, get_executor
+from statgen_mcp.executors.base import get_executor
 from statgen_mcp.utils.file_io import list_output_files, make_run_dir, parse_plink2_log
 from statgen_mcp.utils.validation import ValidationError, require_binary, require_file
 

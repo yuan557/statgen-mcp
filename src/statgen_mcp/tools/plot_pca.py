@@ -125,8 +125,8 @@ def run_plot_pca(params: PlotPcaInput) -> PlotPcaResult:
 
         if unique_labels is not None:
             handles = [
-                mpatches.Patch(color=DEFAULT_COLORS.get(l, "grey"), label=l)
-                for l in unique_labels
+                mpatches.Patch(color=DEFAULT_COLORS.get(pop, "grey"), label=pop)
+                for pop in unique_labels
             ]
             fig.legend(handles=handles, loc="lower center", ncol=min(len(unique_labels), 5),
                        bbox_to_anchor=(0.5, -0.05))

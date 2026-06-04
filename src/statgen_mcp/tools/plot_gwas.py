@@ -121,7 +121,7 @@ def run_plot_gwas(params: PlotGwasInput) -> PlotGwasResult:
             mid = (df.loc[mask, "_x"].min() + df.loc[mask, "_x"].max()) / 2
             chr_mids.append((mid, str(chr_val).replace("chr", "")))
         ax.set_xticks([m for m, _ in chr_mids])
-        ax.set_xticklabels([l for _, l in chr_mids], fontsize=7)
+        ax.set_xticklabels([label for _, label in chr_mids], fontsize=7)
 
         ax.set_xlabel("Chromosome")
         ax.set_ylabel("−log₁₀(p)")

@@ -37,7 +37,7 @@ class PlotQqResult(BaseModel):
     command_preview: str | None = None
 
 
-def compute_lambda_gc(pvalues: "pd.Series") -> float:  # type: ignore[name-defined]
+def compute_lambda_gc(pvalues) -> float:
     import numpy as np
     from scipy.stats import chi2
     pvalues = pvalues.dropna()
@@ -47,8 +47,6 @@ def compute_lambda_gc(pvalues: "pd.Series") -> float:  # type: ignore[name-defin
 
 
 def compute_lambda_1000(lambda_gc: float, n_cases: int, n_controls: int) -> float:
-    n = n_cases + n_controls
-    # rescale to effective sample size of 1000 (500 cases, 500 controls)
     n_eff = 1 / (1 / n_cases + 1 / n_controls)
     n_eff_1000 = 1 / (1 / 500 + 1 / 500)
     return 1 + (lambda_gc - 1) * (n_eff_1000 / n_eff)
@@ -72,7 +70,6 @@ def run_plot_qq(params: PlotQqInput) -> PlotQqResult:
         import matplotlib.pyplot as plt
         import numpy as np
         import pandas as pd
-        from scipy.stats import chi2
     except ImportError:
         return PlotQqResult(
             status="failed",
