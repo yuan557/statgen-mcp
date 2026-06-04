@@ -22,9 +22,12 @@ class ExecutorConfig:
 @dataclass
 class SlurmConfig:
     partition: str = "normal"
+    time: str = "04:00:00"
     default_memory: str = "16G"
     default_cpus: int = 4
     account: str = ""
+    poll_interval: int = 30    # seconds between squeue checks
+    max_wait: int = 86400      # seconds before giving up (24h)
 
 
 @dataclass

@@ -2,6 +2,7 @@
 
 import pytest
 
+from statgen_mcp.executors.base import SlurmExecutor, get_executor
 from statgen_mcp.tools.filter_samples import FilterSamplesInput, run_filter_samples
 from statgen_mcp.tools.gwas import GwasInput, _build_covar_file, run_gwas
 from statgen_mcp.tools.king import KingInput, run_king_cutoff
@@ -391,6 +392,56 @@ def test_build_covar_file_merge(tmp_path):
 
 def test_build_covar_file_none_when_no_inputs(tmp_path):
     assert _build_covar_file(None, None, 10, tmp_path) is None
+
+
+# ---------------------------------------------------------------------------
+# SLURM executor
+# ---------------------------------------------------------------------------
+
+def test_get_executor_local():
+    from statgen_mcp.executors.base import LocalExecutor
+    assert isinstance(get_executor("local"), LocalExecutor)
+
+
+def test_get_executor_slurm():
+    assert isinstance(get_executor("slurm"), SlurmExecutor)
+
+
+def test_get_executor_unknown():
+    with pytest.raises(ValueError, match="Supported"):
+        get_executor("aws")
+
+
+def test_slurm_dry_run_generates_script(tmp_path, monkeypatch):
+    monkeypatch.setenv("STATGEN_MCP_CONFIG", "")
+    executor = SlurmExecutor()
+    result = executor.run(
+        cmd=["plink2", "--bfile", "data", "--make-bed", "--out", "out"],
+        job_name="test_job",
+        work_dir=tmp_path,
+        dry_run=True,
+    )
+    assert result.status == "dry_run"
+    assert "#SBATCH" in result.stdout
+    assert "plink2" in result.stdout
+    assert "#SBATCH --partition=" in result.stdout
+    assert "#SBATCH --mem=" in result.stdout
+
+
+def test_slurm_dry_run_respects_slurm_opts(tmp_path, monkeypatch):
+    monkeypatch.setenv("STATGEN_MCP_CONFIG", "")
+    executor = SlurmExecutor()
+    result = executor.run(
+        cmd=["plink2", "--bfile", "data", "--out", "out"],
+        job_name="test_job",
+        work_dir=tmp_path,
+        dry_run=True,
+        slurm_opts={"partition": "gpu", "mem": "64G", "time": "08:00:00"},
+    )
+    assert result.status == "dry_run"
+    assert "gpu" in result.stdout
+    assert "64G" in result.stdout
+    assert "08:00:00" in result.stdout
 
 
 # ---------------------------------------------------------------------------

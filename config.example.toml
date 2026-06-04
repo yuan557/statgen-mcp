@@ -18,9 +18,12 @@ output_dir = "~/statgen-mcp-runs"
 # Uncomment when using SLURM
 # [slurm]
 # partition = "normal"
-# account = "myaccount"
+# account = "myaccount"        # required on some clusters
+# time = "04:00:00"            # wall time limit (HH:MM:SS)
 # default_memory = "16G"
 # default_cpus = 4
+# poll_interval = 30           # seconds between squeue checks
+# max_wait = 86400             # give up after 24h
 
 
 # Uncomment when using AWS Batch
