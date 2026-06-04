@@ -37,10 +37,13 @@ async def list_tools() -> list[Tool]:
         Tool(
             name="king_cutoff",
             description=(
-                "Remove related individuals using PLINK2 --king-cutoff. "
-                "One sample from each related pair above the kinship cutoff is removed. "
+                "Relatedness analysis using PLINK2 KING. "
+                "By default (report_only=False), removes one sample from each pair above the kinship cutoff. "
+                "With report_only=True, reports all related pairs above the cutoff without removing anyone. "
                 "Typical GWAS cutoff: 0.0442 (3rd-degree relatives). "
-                "Input must be a PLINK prefix."
+                "Input must be a PLINK prefix. "
+                "For imputed input, prepare with vcf_qc using variant_source='imputed' and min_info_score >= 0.99, "
+                "or use variant_source='genotyped' to restrict to directly typed variants."
             ),
             inputSchema=KingInput.model_json_schema(),
         ),
@@ -50,7 +53,9 @@ async def list_tools() -> list[Tool]:
                 "Run principal component analysis on a PLINK dataset using PLINK2. "
                 "LD-prunes first by default. "
                 "Outputs .eigenvec and .eigenval files. "
-                "Use PCs as covariates in downstream GWAS."
+                "Use PCs as covariates in downstream GWAS. "
+                "Input should be genotyped variants or imputed variants with INFO >= 0.99 — "
+                "prepare with vcf_qc using variant_source='genotyped' or variant_source='imputed' min_info_score=0.99."
             ),
             inputSchema=PcaInput.model_json_schema(),
         ),

@@ -1,10 +1,10 @@
 """
-Relatedness filtering via PLINK2 --king-cutoff.
-Removes one sample from each pair exceeding the kinship threshold.
+Relatedness filtering and reporting via PLINK2 --king-cutoff / --make-king-table.
 """
 
 from __future__ import annotations
 
+import csv
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -29,11 +29,25 @@ class KingInput(BaseModel):
     king_cutoff: float = Field(
         default=0.0442,
         description=(
-            "Kinship coefficient cutoff. One sample from each pair above this is removed. "
+            "Kinship coefficient cutoff. One sample from each pair above this is removed "
+            "(filter mode) or reported (report_only mode). "
             "Common values: 0.177 (1st degree), 0.0884 (2nd), 0.0442 (3rd / typical GWAS cutoff)"
         ),
     )
+    report_only: bool = Field(
+        default=False,
+        description=(
+            "If True, report related pairs above the cutoff without removing any samples. "
+            "Uses --make-king-table instead of --king-cutoff."
+        ),
+    )
     dry_run: bool = Field(default=False)
+
+
+class RelatedPair(BaseModel):
+    sample1: str
+    sample2: str
+    kinship: float
 
 
 class KingResult(BaseModel):
@@ -42,6 +56,8 @@ class KingResult(BaseModel):
     output_files: list[str] = []
     samples_before: int | None = None
     kinship_cutoff_used: float | None = None
+    related_pairs: list[RelatedPair] = []
+    n_related_pairs: int | None = None
     log_summary: dict = {}
     error_message: str | None = None
     command_preview: str | None = None
@@ -61,21 +77,31 @@ def run_king_cutoff(params: KingInput) -> KingResult:
     except ValidationError as e:
         return KingResult(status="failed", error_message=str(e))
 
-    run_dir = make_run_dir(cfg.output_dir, "king_cutoff")
+    job_name = "king_report" if params.report_only else "king_cutoff"
+    run_dir = make_run_dir(cfg.output_dir, job_name)
     out = run_dir / Path(params.output_prefix).name
 
-    cmd = [
-        plink2,
-        "--bfile", params.input_prefix,
-        "--king-cutoff", str(params.king_cutoff),
-        "--make-bed",
-        "--out", str(out),
-    ]
+    if params.report_only:
+        cmd = [
+            plink2,
+            "--bfile", params.input_prefix,
+            "--make-king-table",
+            "--king-table-filter", str(params.king_cutoff),
+            "--out", str(out),
+        ]
+    else:
+        cmd = [
+            plink2,
+            "--bfile", params.input_prefix,
+            "--king-cutoff", str(params.king_cutoff),
+            "--make-bed",
+            "--out", str(out),
+        ]
 
     executor = get_executor(cfg.executor.backend)
     job: JobResult = executor.run(
         cmd=cmd,
-        job_name="king_cutoff",
+        job_name=job_name,
         work_dir=run_dir,
         dry_run=params.dry_run,
     )
@@ -92,11 +118,25 @@ def run_king_cutoff(params: KingInput) -> KingResult:
 
     log_path = Path(str(out) + ".log")
     log_summary = parse_plink2_log(log_path)
+
+    if params.report_only:
+        related_pairs = _parse_king_table(Path(str(out) + ".kin0"))
+        output_files = list_output_files(run_dir, [".kin0", ".log"])
+        return KingResult(
+            status="success",
+            output_prefix=str(out),
+            output_files=output_files,
+            kinship_cutoff_used=params.king_cutoff,
+            related_pairs=related_pairs,
+            n_related_pairs=len(related_pairs),
+            log_summary=log_summary,
+            runtime_seconds=job.runtime_seconds,
+        )
+
     output_files = list_output_files(
         run_dir,
         [".bed", ".bim", ".fam", ".log", ".king.cutoff.out.id", ".king.cutoff.in.id"]
     )
-
     return KingResult(
         status="success",
         output_prefix=str(out),
@@ -106,3 +146,18 @@ def run_king_cutoff(params: KingInput) -> KingResult:
         kinship_cutoff_used=params.king_cutoff,
         runtime_seconds=job.runtime_seconds,
     )
+
+
+def _parse_king_table(path: Path) -> list[RelatedPair]:
+    if not path.exists():
+        return []
+    pairs = []
+    with path.open() as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        for row in reader:
+            pairs.append(RelatedPair(
+                sample1=row["#IID1"],
+                sample2=row["IID2"],
+                kinship=float(row["KINSHIP"]),
+            ))
+    return pairs

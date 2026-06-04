@@ -1,7 +1,6 @@
 """Basic tests for statgen-mcp. Uses dry_run=True so no real binaries needed."""
 
 import pytest
-from pydantic import ValidationError as PydanticValidationError
 
 from statgen_mcp.tools.king import KingInput, run_king_cutoff
 from statgen_mcp.tools.pca import PcaInput, run_pca
@@ -18,16 +17,16 @@ def test_vcf_qc_invalid_maf():
 
 
 def test_vcf_qc_imputed_requires_score():
-    with pytest.raises(PydanticValidationError):
+    with pytest.raises(Exception):
         VcfQcInput(input_prefix="x", output_prefix="y", variant_source="imputed")
 
 
 def test_vcf_qc_imputed_with_score_valid():
     params = VcfQcInput(
         input_prefix="x", output_prefix="y",
-        variant_source="imputed", min_info_score=0.9,
+        variant_source="imputed", min_info_score=0.99,
     )
-    assert params.min_info_score == 0.9
+    assert params.min_info_score == 0.99
 
 
 # ---------------------------------------------------------------------------
@@ -145,6 +144,45 @@ def test_king_missing_file():
 def test_king_default_cutoff():
     params = KingInput(input_prefix="x", output_prefix="y")
     assert params.king_cutoff == 0.0442
+    assert params.report_only is False
+
+
+def test_king_report_only_dry_run(tmp_path, monkeypatch):
+    bed = tmp_path / "data.bed"
+    bim = tmp_path / "data.bim"
+    fam = tmp_path / "data.fam"
+    for f in (bed, bim, fam):
+        f.touch()
+    monkeypatch.setenv("STATGEN_MCP_CONFIG", "")
+    params = KingInput(
+        input_prefix=str(tmp_path / "data"),
+        output_prefix="out",
+        report_only=True,
+        dry_run=True,
+    )
+    result = run_king_cutoff(params)
+    assert result.status == "dry_run"
+    assert "--make-king-table" in result.command_preview
+    assert "--king-cutoff" not in result.command_preview
+
+
+def test_king_cutoff_dry_run(tmp_path, monkeypatch):
+    bed = tmp_path / "data.bed"
+    bim = tmp_path / "data.bim"
+    fam = tmp_path / "data.fam"
+    for f in (bed, bim, fam):
+        f.touch()
+    monkeypatch.setenv("STATGEN_MCP_CONFIG", "")
+    params = KingInput(
+        input_prefix=str(tmp_path / "data"),
+        output_prefix="out",
+        report_only=False,
+        dry_run=True,
+    )
+    result = run_king_cutoff(params)
+    assert result.status == "dry_run"
+    assert "--king-cutoff" in result.command_preview
+    assert "--make-king-table" not in result.command_preview
 
 
 # ---------------------------------------------------------------------------

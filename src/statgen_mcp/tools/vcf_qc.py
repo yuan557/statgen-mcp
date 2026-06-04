@@ -44,7 +44,10 @@ class VcfQcInput(BaseModel):
     )
     min_info_score: float | None = Field(
         default=None,
-        description="Minimum imputation INFO score (required when variant_source='imputed')",
+        description=(
+            "Minimum imputation INFO score (required when variant_source='imputed'). "
+            "Use >= 0.99 for PCA/kinship input. Use 0.3–0.8 for GWAS input."
+        ),
     )
     info_field: str = Field(
         default="R2",
@@ -55,6 +58,12 @@ class VcfQcInput(BaseModel):
         description="INFO flag name for directly genotyped variants (e.g. TYPED for Minimac, GENOTYPED for IMPUTE4)",
     )
     dry_run: bool = Field(default=False, description="Preview command without running")
+
+    @model_validator(mode="after")
+    def check_imputed_has_score(self) -> "VcfQcInput":
+        if self.variant_source == "imputed" and self.min_info_score is None:
+            raise ValueError("min_info_score is required when variant_source='imputed'")
+        return self
 
     @field_validator("maf")
     @classmethod
@@ -70,11 +79,6 @@ class VcfQcInput(BaseModel):
             raise ValueError("must be between 0 and 1")
         return v
 
-    @model_validator(mode="after")
-    def check_imputed_has_score(self) -> "VcfQcInput":
-        if self.variant_source == "imputed" and self.min_info_score is None:
-            raise ValueError("min_info_score is required when variant_source='imputed'")
-        return self
 
 
 class VcfQcResult(BaseModel):
