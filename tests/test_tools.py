@@ -2,6 +2,7 @@
 
 import pytest
 
+from statgen_mcp.tools.filter_samples import FilterSamplesInput, run_filter_samples
 from statgen_mcp.tools.king import KingInput, run_king_cutoff
 from statgen_mcp.tools.pca import PcaInput, run_pca
 from statgen_mcp.tools.vcf_qc import VcfQcInput, run_vcf_qc
@@ -183,6 +184,80 @@ def test_king_cutoff_dry_run(tmp_path, monkeypatch):
     assert result.status == "dry_run"
     assert "--king-cutoff" in result.command_preview
     assert "--make-king-table" not in result.command_preview
+
+
+# ---------------------------------------------------------------------------
+# filter_samples
+# ---------------------------------------------------------------------------
+
+def test_filter_samples_requires_at_least_one_file():
+    with pytest.raises(Exception):
+        FilterSamplesInput(input_prefix="x", output_prefix="y")
+
+
+def test_filter_samples_missing_plink():
+    params = FilterSamplesInput(
+        input_prefix="/nonexistent/data", output_prefix="out", keep_file="/some/file.txt"
+    )
+    result = run_filter_samples(params)
+    assert result.status == "failed"
+
+
+def test_filter_samples_keep_dry_run(tmp_path, monkeypatch):
+    for ext in [".bed", ".bim", ".fam"]:
+        (tmp_path / f"data{ext}").touch()
+    keep = tmp_path / "keep.txt"
+    keep.write_text("0 NA12878\n")
+    monkeypatch.setenv("STATGEN_MCP_CONFIG", "")
+    params = FilterSamplesInput(
+        input_prefix=str(tmp_path / "data"),
+        output_prefix="out",
+        keep_file=str(keep),
+        dry_run=True,
+    )
+    result = run_filter_samples(params)
+    assert result.status == "dry_run"
+    assert "--keep" in result.command_preview
+    assert "--remove" not in result.command_preview
+
+
+def test_filter_samples_remove_dry_run(tmp_path, monkeypatch):
+    for ext in [".bed", ".bim", ".fam"]:
+        (tmp_path / f"data{ext}").touch()
+    remove = tmp_path / "remove.txt"
+    remove.write_text("0 NA12879\n")
+    monkeypatch.setenv("STATGEN_MCP_CONFIG", "")
+    params = FilterSamplesInput(
+        input_prefix=str(tmp_path / "data"),
+        output_prefix="out",
+        remove_file=str(remove),
+        dry_run=True,
+    )
+    result = run_filter_samples(params)
+    assert result.status == "dry_run"
+    assert "--remove" in result.command_preview
+    assert "--keep" not in result.command_preview
+
+
+def test_filter_samples_both_dry_run(tmp_path, monkeypatch):
+    for ext in [".bed", ".bim", ".fam"]:
+        (tmp_path / f"data{ext}").touch()
+    keep = tmp_path / "keep.txt"
+    keep.write_text("0 NA12878\n")
+    remove = tmp_path / "remove.txt"
+    remove.write_text("0 NA12879\n")
+    monkeypatch.setenv("STATGEN_MCP_CONFIG", "")
+    params = FilterSamplesInput(
+        input_prefix=str(tmp_path / "data"),
+        output_prefix="out",
+        keep_file=str(keep),
+        remove_file=str(remove),
+        dry_run=True,
+    )
+    result = run_filter_samples(params)
+    assert result.status == "dry_run"
+    assert "--keep" in result.command_preview
+    assert "--remove" in result.command_preview
 
 
 # ---------------------------------------------------------------------------
