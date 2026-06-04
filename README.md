@@ -11,6 +11,7 @@ Claude will chain `vcf_qc → king_cutoff → filter_samples → run_pca → run
 |------|-------------|
 | `vcf_qc` | MAF, MIND, GENO, HWE filtering via PLINK2. Pre-filters VCF by variant source (genotyped / imputed INFO score / WGS) via bcftools. |
 | `king_cutoff` | Relatedness analysis via PLINK2 KING. Report-only mode or filter mode (removes one sample per related pair). |
+| `het_check` | Heterozygosity QC via PLINK2 `--het`. Flags contaminated samples (excess het) and inbred samples (deficient het) by F statistic SD cutoff. Writes a remove file for `filter_samples`. |
 | `filter_samples` | Keep or remove samples by FID/IID list — ancestry subsets, PCA outliers, kinship exclusions. |
 | `run_pca` | LD-prune then PCA via PLINK2. Optionally excludes high-LD regions (MHC, inversions). Outputs `.eigenvec` / `.eigenval`. |
 | `run_gwas` | PLINK2 `--glm` per chromosome. Merges user covariates + PCA eigenvec internally. Firth fallback for binary traits. |
@@ -23,8 +24,9 @@ Claude will chain `vcf_qc → king_cutoff → filter_samples → run_pca → run
 
 ```
 vcf_qc (genotyped or imputed INFO >= 0.99)
-  king_cutoff
-  filter_samples
+  het_check (remove contaminated / inbred samples)
+  king_cutoff (remove cryptic relatives)
+  filter_samples (ancestry subset, outlier removal)
   run_pca
   run_gwas (imputed INFO >= 0.3–0.8, per chromosome)
 ```

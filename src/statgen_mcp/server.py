@@ -13,6 +13,7 @@ from mcp.types import TextContent, Tool
 
 from statgen_mcp.tools.filter_samples import FilterSamplesInput, run_filter_samples
 from statgen_mcp.tools.gwas import GwasInput, run_gwas
+from statgen_mcp.tools.het_check import HetCheckInput, run_het_check
 from statgen_mcp.tools.plot_gwas import PlotGwasInput, run_plot_gwas
 from statgen_mcp.tools.plot_pca import PlotPcaInput, run_plot_pca
 from statgen_mcp.tools.plot_qq import PlotQqInput, run_plot_qq
@@ -114,6 +115,18 @@ async def list_tools() -> list[Tool]:
             inputSchema=FilterSamplesInput.model_json_schema(),
         ),
         Tool(
+            name="het_check",
+            description=(
+                "Heterozygosity QC via PLINK2 --het. "
+                "Flags samples deviating more than sd_threshold SD from the mean F statistic. "
+                "Excess heterozygosity (F << mean) indicates sample contamination. "
+                "Deficient heterozygosity (F >> mean) indicates inbreeding or population structure. "
+                "Run on genotyped variants after vcf_qc, before king_cutoff. "
+                "Optionally writes a remove file ready for filter_samples."
+            ),
+            inputSchema=HetCheckInput.model_json_schema(),
+        ),
+        Tool(
             name="check_tools",
             description=(
                 "Check which required external tools (plink2, flashpca) are installed "
@@ -155,6 +168,11 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         elif name == "filter_samples":
             params = FilterSamplesInput(**arguments)
             result = run_filter_samples(params)
+            return [TextContent(type="text", text=result.model_dump_json(indent=2))]
+
+        elif name == "het_check":
+            params = HetCheckInput(**arguments)
+            result = run_het_check(params)
             return [TextContent(type="text", text=result.model_dump_json(indent=2))]
 
         elif name == "king_cutoff":

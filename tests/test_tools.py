@@ -5,6 +5,7 @@ import pytest
 from statgen_mcp.executors.base import SlurmExecutor, get_executor
 from statgen_mcp.tools.filter_samples import FilterSamplesInput, run_filter_samples
 from statgen_mcp.tools.gwas import GwasInput, _build_covar_file, run_gwas
+from statgen_mcp.tools.het_check import HetCheckInput, _parse_het_file, run_het_check
 from statgen_mcp.tools.king import KingInput, run_king_cutoff
 from statgen_mcp.tools.pca import PcaInput, run_pca
 from statgen_mcp.tools.plot_gwas import PlotGwasInput, run_plot_gwas
@@ -592,6 +593,54 @@ def test_compute_lambda_gc():
     pvals = pd.Series(np.linspace(0.001, 0.999, 10000))
     lam = compute_lambda_gc(pvals)
     assert 0.95 < lam < 1.05
+
+
+# ---------------------------------------------------------------------------
+# het_check
+# ---------------------------------------------------------------------------
+
+def test_het_check_missing_file():
+    params = HetCheckInput(input_prefix="/nonexistent/data", output_prefix="out")
+    result = run_het_check(params)
+    assert result.status == "failed"
+
+
+def test_het_check_dry_run(tmp_path):
+    for ext in [".bed", ".bim", ".fam"]:
+        (tmp_path / f"data{ext}").touch()
+    params = HetCheckInput(
+        input_prefix=str(tmp_path / "data"),
+        output_prefix="het_out",
+        dry_run=True,
+    )
+    result = run_het_check(params)
+    assert result.status == "dry_run"
+    assert "--het" in result.command_preview
+
+
+def test_parse_het_file_flags_outliers(tmp_path):
+    # 8 normal samples at F=0.0, 2 outliers at ±1.0
+    # mean=0, sd≈0.447, z(±1.0)≈±2.24 → both flagged at threshold=2.0
+    het = tmp_path / "out.het"
+    lines = ["#FID\tIID\tO(HOM)\tE(HOM)\tOBS_CT\tF\n"]
+    for i in range(8):
+        lines.append(f"0\tSAMPLE{i}\t800000\t790000\t1000000\t0.0\n")
+    lines.append("0\tOUTLIER_HIGH\t900000\t790000\t1000000\t1.0\n")
+    lines.append("0\tOUTLIER_LOW\t600000\t790000\t1000000\t-1.0\n")
+    het.write_text("".join(lines))
+
+    outliers, mean_f, sd_f, n = _parse_het_file(het, sd_threshold=2.0)
+    assert n == 10
+    assert any(o.iid == "OUTLIER_HIGH" and o.direction == "low_het" for o in outliers)
+    assert any(o.iid == "OUTLIER_LOW" and o.direction == "excess_het" for o in outliers)
+    assert mean_f is not None
+    assert sd_f > 0
+
+
+def test_het_check_defaults():
+    params = HetCheckInput(input_prefix="x", output_prefix="y")
+    assert params.sd_threshold == 3.0
+    assert params.write_remove_file is True
 
 
 def test_plot_gwas_missing_file():
