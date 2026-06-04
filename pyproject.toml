@@ -19,6 +19,12 @@ dependencies = [
 statgen-mcp = "statgen_mcp.server:main"
 
 [project.optional-dependencies]
+plots = [
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "matplotlib>=3.7",
+    "scipy>=1.10",
+]
 dev = ["pytest", "pytest-asyncio", "ruff"]
 
 [tool.hatch.build.targets.wheel]
