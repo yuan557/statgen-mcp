@@ -15,14 +15,6 @@ class PlotQqInput(BaseModel):
     )
     output_path: str = Field(description="Output PNG file path")
     p_col: str = Field(default="P", description="Column name for p-values")
-    n_cases: int | None = Field(
-        default=None,
-        description="Number of cases for binary traits (used to compute lambda_1000)",
-    )
-    n_controls: int | None = Field(
-        default=None,
-        description="Number of controls for binary traits (used to compute lambda_1000)",
-    )
     dpi: int = Field(default=150)
     dry_run: bool = Field(default=False)
 
@@ -31,7 +23,6 @@ class PlotQqResult(BaseModel):
     status: str
     output_path: str = ""
     lambda_gc: float | None = None
-    lambda_1000: float | None = None
     n_variants: int | None = None
     error_message: str | None = None
     command_preview: str | None = None
@@ -46,12 +37,6 @@ def compute_lambda_gc(pvalues) -> float:
     return float(np.median(chisq) / chi2.ppf(0.5, df=1))
 
 
-def compute_lambda_1000(lambda_gc: float, n_cases: int, n_controls: int) -> float:
-    n_eff = 1 / (1 / n_cases + 1 / n_controls)
-    n_eff_1000 = 1 / (1 / 500 + 1 / 500)
-    return 1 + (lambda_gc - 1) * (n_eff_1000 / n_eff)
-
-
 def run_plot_qq(params: PlotQqInput) -> PlotQqResult:
     try:
         require_file(params.summary_stats_file)
@@ -61,7 +46,7 @@ def run_plot_qq(params: PlotQqInput) -> PlotQqResult:
     if params.dry_run:
         return PlotQqResult(
             status="dry_run",
-            command_preview=f"plot_qq: {params.summary_stats_file} → {params.output_path}",
+            command_preview=f"plot_qq: {params.summary_stats_file} -> {params.output_path}",
         )
 
     try:
@@ -93,9 +78,6 @@ def run_plot_qq(params: PlotQqInput) -> PlotQqResult:
             return PlotQqResult(status="failed", error_message="No valid p-values found")
 
         lambda_gc = compute_lambda_gc(pvals)
-        lambda_1000 = None
-        if params.n_cases and params.n_controls:
-            lambda_1000 = compute_lambda_1000(lambda_gc, params.n_cases, params.n_controls)
 
         observed = -np.log10(pvals.values)
         expected = -np.log10(np.arange(1, n + 1) / (n + 1))
@@ -104,15 +86,12 @@ def run_plot_qq(params: PlotQqInput) -> PlotQqResult:
         ax.scatter(expected, observed, s=4, alpha=0.5, color="#4878CF", rasterized=True)
         ax.plot([0, expected.max()], [0, expected.max()], "r--", linewidth=1, label="Expected")
 
-        lambda_label = f"λ_GC = {lambda_gc:.3f}"
-        if lambda_1000 is not None:
-            lambda_label += f"\nλ_1000 = {lambda_1000:.3f}"
-        ax.text(0.05, 0.95, lambda_label, transform=ax.transAxes,
+        ax.text(0.05, 0.95, f"λ_GC = {lambda_gc:.3f}", transform=ax.transAxes,
                 verticalalignment="top", fontsize=10,
                 bbox=dict(boxstyle="round", facecolor="white", alpha=0.8))
 
-        ax.set_xlabel("Expected −log₁₀(p)")
-        ax.set_ylabel("Observed −log₁₀(p)")
+        ax.set_xlabel("Expected -log10(p)")
+        ax.set_ylabel("Observed -log10(p)")
         ax.set_title("QQ Plot")
         plt.tight_layout()
 
@@ -124,7 +103,6 @@ def run_plot_qq(params: PlotQqInput) -> PlotQqResult:
             status="success",
             output_path=params.output_path,
             lambda_gc=round(lambda_gc, 4),
-            lambda_1000=round(lambda_1000, 4) if lambda_1000 else None,
             n_variants=n,
         )
 
