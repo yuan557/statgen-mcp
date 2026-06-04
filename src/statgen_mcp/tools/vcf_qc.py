@@ -36,9 +36,13 @@ class VcfQcInput(BaseModel):
     hwe_ctrl_only: bool = Field(
         default=False,
         description=(
-            "Apply HWE filter to controls only (recommended for case-control GWAS). "
-            "Cases can deviate from HWE at disease loci — filtering them removes true signal. "
-            "Ignored when no case-control phenotype is present (e.g. WGS reference panels)."
+            "Apply HWE filter to controls only. "
+            "Two defensible approaches: (1) lenient threshold (e.g. 1e-6) with ctrl-only — "
+            "protects true disease loci in cases that may deviate from HWE; "
+            "(2) stringent threshold (e.g. 5e-8) on the full sample — at that level only "
+            "genotyping errors fail, so case inflation is not a practical concern. "
+            "Use ctrl-only for standard GWAS QC; full-sample is acceptable if threshold is very stringent. "
+            "Ignored when no case-control phenotype is present."
         ),
     )
     biallelic_only: bool = Field(
