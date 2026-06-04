@@ -1,9 +1,9 @@
 # statgen-mcp
 
-An MCP server that lets Claude act as an adaptive orchestrator for statistical genetics pipelines. Instead of writing a Snakefile, you tell Claude what you want - it calls the tools, reads intermediate outputs, and adjusts parameters along the way.
+An MCP server that lets any agentic AI (e.g. Claude, Gemini, Codex) act as an adaptive orchestrator for statistical genetics pipelines. Instead of writing a Snakefile, you tell the agent what you want - it calls the tools, reads intermediate outputs, and adjusts parameters along the way.
 
 **Example:** "QC the imputed VCF, remove related samples, run PCA, then run GWAS on BMI adjusting for age, sex, and PCs."
-Claude will chain `vcf_qc`, `king_cutoff`, `filter_samples`, `run_pca`, and `run_gwas`, pick `n_pcs` from the eigenvalue curve, and flag anything unexpected in the QC logs.
+The agent will chain `vcf_qc`, `king_cutoff`, `filter_samples`, `run_pca`, and `run_gwas`, pick `n_pcs` from the eigenvalue curve, and flag anything unexpected in the QC logs.
 
 ## Tools
 
@@ -72,10 +72,11 @@ cp config.example.toml ~/.statgen-mcp/config.toml
 
 Output files go to `~/statgen-mcp-runs/` by default (one timestamped subdirectory per tool call). SLURM submission is supported - see `config.example.toml`.
 
-## Claude Desktop / Claude Code setup
+## Agent setup
 
-Add to your MCP config:
+Works with any MCP-compatible agent. Examples:
 
+**Claude Code (CLI)** - add to `.mcp.json` in your project root:
 ```json
 {
   "mcpServers": {
@@ -86,7 +87,9 @@ Add to your MCP config:
 }
 ```
 
-For Claude Code (CLI), add to `.mcp.json` in your project root or `~/.claude.json` globally.
+**Claude Desktop** - add the same block to `~/Library/Application Support/Claude/claude_desktop_config.json`.
+
+Other agents (Gemini CLI, Codex CLI, etc.) - consult their MCP client documentation for the equivalent config.
 
 ## Roadmap
 
