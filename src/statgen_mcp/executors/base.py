@@ -151,6 +151,10 @@ class SlurmExecutor(BaseExecutor):
         ]
         if account:
             script_lines.append(f"#SBATCH --account={account}")
+        known_keys = {"partition", "time", "mem", "cpus", "account"}
+        for key, val in opts.items():
+            if key not in known_keys:
+                script_lines.append(f"#SBATCH --{key}={val}")
         script_lines += ["", self.preview(cmd), ""]
         script_file.write_text("\n".join(script_lines))
 
