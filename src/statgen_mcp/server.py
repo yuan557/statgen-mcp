@@ -13,6 +13,9 @@ from mcp.types import TextContent, Tool
 
 from statgen_mcp.tools.filter_samples import FilterSamplesInput, run_filter_samples
 from statgen_mcp.tools.gwas import GwasInput, run_gwas
+from statgen_mcp.tools.plot_gwas import PlotGwasInput, run_plot_gwas
+from statgen_mcp.tools.plot_pca import PlotPcaInput, run_plot_pca
+from statgen_mcp.tools.plot_qq import PlotQqInput, run_plot_qq
 from statgen_mcp.tools.king import KingInput, run_king_cutoff
 from statgen_mcp.tools.pca import PcaInput, run_pca
 from statgen_mcp.tools.vcf_qc import VcfQcInput, run_vcf_qc
@@ -62,6 +65,34 @@ async def list_tools() -> list[Tool]:
             inputSchema=PcaInput.model_json_schema(),
         ),
         Tool(
+            name="plot_pca",
+            description=(
+                "Plot PCA results as scatter plots (PC1 vs PC2, PC3 vs PC4 by default). "
+                "Optionally colour points by population label from a separate file. "
+                "Input is the .eigenvec file from run_pca."
+            ),
+            inputSchema=PlotPcaInput.model_json_schema(),
+        ),
+        Tool(
+            name="plot_gwas",
+            description=(
+                "Manhattan plot for GWAS summary statistics. "
+                "Draws genome-wide significance (5e-8) and suggestive (1e-5) lines. "
+                "Annotates plot with lambda GC. Returns n_significant variants. "
+                "Input is a concatenated PLINK2 .glm.linear or .glm.logistic.hybrid file."
+            ),
+            inputSchema=PlotGwasInput.model_json_schema(),
+        ),
+        Tool(
+            name="plot_qq",
+            description=(
+                "QQ plot for GWAS summary statistics. "
+                "Computes and annotates lambda GC (and lambda_1000 for binary traits). "
+                "Input is a concatenated PLINK2 .glm.linear or .glm.logistic.hybrid file."
+            ),
+            inputSchema=PlotQqInput.model_json_schema(),
+        ),
+        Tool(
             name="run_gwas",
             description=(
                 "Run genome-wide association study using PLINK2 --glm. "
@@ -99,6 +130,21 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         if name == "vcf_qc":
             params = VcfQcInput(**arguments)
             result = run_vcf_qc(params)
+            return [TextContent(type="text", text=result.model_dump_json(indent=2))]
+
+        elif name == "plot_pca":
+            params = PlotPcaInput(**arguments)
+            result = run_plot_pca(params)
+            return [TextContent(type="text", text=result.model_dump_json(indent=2))]
+
+        elif name == "plot_gwas":
+            params = PlotGwasInput(**arguments)
+            result = run_plot_gwas(params)
+            return [TextContent(type="text", text=result.model_dump_json(indent=2))]
+
+        elif name == "plot_qq":
+            params = PlotQqInput(**arguments)
+            result = run_plot_qq(params)
             return [TextContent(type="text", text=result.model_dump_json(indent=2))]
 
         elif name == "run_gwas":

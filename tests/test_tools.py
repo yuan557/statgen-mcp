@@ -7,6 +7,9 @@ from statgen_mcp.tools.filter_samples import FilterSamplesInput, run_filter_samp
 from statgen_mcp.tools.gwas import GwasInput, _build_covar_file, run_gwas
 from statgen_mcp.tools.king import KingInput, run_king_cutoff
 from statgen_mcp.tools.pca import PcaInput, run_pca
+from statgen_mcp.tools.plot_gwas import PlotGwasInput, run_plot_gwas
+from statgen_mcp.tools.plot_pca import PlotPcaInput, run_plot_pca
+from statgen_mcp.tools.plot_qq import PlotQqInput, compute_lambda_gc, run_plot_qq
 from statgen_mcp.tools.vcf_qc import VcfQcInput, run_vcf_qc
 from statgen_mcp.utils.file_io import parse_plink2_log
 
@@ -473,3 +476,93 @@ def test_pca_dry_run(tmp_path):
     assert result.status in ("dry_run", "failed")
     if result.status == "dry_run":
         assert "indep-pairwise" in result.command_preview
+
+
+# ---------------------------------------------------------------------------
+# Plotting
+# ---------------------------------------------------------------------------
+
+def test_plot_pca_missing_file():
+    params = PlotPcaInput(eigenvec_file="/nonexistent.eigenvec", output_path="/tmp/out.png")
+    result = run_plot_pca(params)
+    assert result.status == "failed"
+
+
+def test_plot_pca_dry_run(tmp_path):
+    ev = tmp_path / "test.eigenvec"
+    ev.touch()
+    params = PlotPcaInput(
+        eigenvec_file=str(ev),
+        output_path=str(tmp_path / "pca.png"),
+        dry_run=True,
+    )
+    result = run_plot_pca(params)
+    assert result.status == "dry_run"
+    assert "plot_pca" in result.command_preview
+
+
+def test_plot_pca_dry_run_with_labels(tmp_path):
+    ev = tmp_path / "test.eigenvec"
+    ev.touch()
+    labels = tmp_path / "labels.txt"
+    labels.touch()
+    params = PlotPcaInput(
+        eigenvec_file=str(ev),
+        output_path=str(tmp_path / "pca.png"),
+        label_file=str(labels),
+        label_col="Superpopulation",
+        dry_run=True,
+    )
+    result = run_plot_pca(params)
+    assert result.status == "dry_run"
+    assert "Superpopulation" in result.command_preview
+
+
+def test_plot_qq_missing_file():
+    params = PlotQqInput(summary_stats_file="/nonexistent.glm.linear", output_path="/tmp/qq.png")
+    result = run_plot_qq(params)
+    assert result.status == "failed"
+
+
+def test_plot_qq_dry_run(tmp_path):
+    f = tmp_path / "gwas.glm.linear"
+    f.touch()
+    params = PlotQqInput(
+        summary_stats_file=str(f),
+        output_path=str(tmp_path / "qq.png"),
+        dry_run=True,
+    )
+    result = run_plot_qq(params)
+    assert result.status == "dry_run"
+
+
+def test_compute_lambda_gc():
+    import numpy as np
+    import pandas as pd
+    # uniform p-values → lambda GC should be ~1.0
+    pvals = pd.Series(np.linspace(0.001, 0.999, 10000))
+    lam = compute_lambda_gc(pvals)
+    assert 0.95 < lam < 1.05
+
+
+def test_plot_gwas_missing_file():
+    params = PlotGwasInput(
+        summary_stats_file="/nonexistent.glm.linear",
+        output_path="/tmp/manhattan.png",
+    )
+    result = run_plot_gwas(params)
+    assert result.status == "failed"
+
+
+def test_plot_gwas_dry_run(tmp_path):
+    f = tmp_path / "gwas.glm.linear"
+    f.touch()
+    params = PlotGwasInput(
+        summary_stats_file=str(f),
+        output_path=str(tmp_path / "manhattan.png"),
+        trait_name="BMI",
+        dry_run=True,
+    )
+    result = run_plot_gwas(params)
+    assert result.status == "dry_run"
+    assert "plot_gwas" in result.command_preview
