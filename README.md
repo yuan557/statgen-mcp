@@ -17,19 +17,27 @@ Claude will chain `vcf_qc → king_cutoff → filter_samples → run_pca → run
 | `run_gwas` | PLINK2 `--glm` per chromosome. Merges user covariates + PCA eigenvec internally. Firth fallback for binary traits. |
 | `plot_pca` | PCA scatter plots coloured by population label. |
 | `plot_gwas` | Manhattan plot with genome-wide / suggestive significance lines and lambda GC. |
-| `plot_qq` | QQ plot with lambda GC and lambda_1000 annotation. |
+| `plot_qq` | QQ plot with lambda GC annotation. |
 | `check_tools` | Verify required binaries (plink2, bcftools) are installed and show versions. |
 
 ## Intended pipeline order
 
-```
-vcf_qc (genotyped or imputed INFO >= 0.99)
-  het_check (remove contaminated / inbred samples)
-  king_cutoff (remove cryptic relatives)
-  filter_samples (ancestry subset, outlier removal)
-  run_pca
-  run_gwas (imputed INFO >= 0.3–0.8, per chromosome)
-```
+**Step 1 — Variant QC**
+Run `vcf_qc` on genotyped or high-confidence imputed variants (INFO >= 0.99). Outputs a clean PLINK dataset.
+
+**Step 2 — Sample QC** (run all three, collect remove files)
+- `het_check` — flag contaminated samples (excess heterozygosity) and inbred samples (deficient heterozygosity)
+- `king_cutoff` — identify cryptic relatives
+- *(optional)* manual ancestry filtering using population labels
+
+**Step 3 — Apply exclusions**
+Pass the remove files from step 2 to `filter_samples`.
+
+**Step 4 — PCA**
+Run `run_pca` on the clean, filtered dataset. Review `plot_pca`. Choose n_pcs from the eigenvalue curve.
+
+**Step 5 — GWAS**
+Run `run_gwas` per chromosome on imputed variants (INFO >= 0.3–0.8). Pass PCs as covariates. Review `plot_manhattan` and `plot_qq`; check lambda GC.
 
 ## Requirements
 
