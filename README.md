@@ -23,10 +23,10 @@ Claude will chain `vcf_qc → king_cutoff → filter_samples → run_pca → run
 
 ```
 vcf_qc (genotyped or imputed INFO >= 0.99)
-  → king_cutoff
-  → filter_samples
-  → run_pca
-  → run_gwas (imputed INFO >= 0.3–0.8, per chromosome)
+  king_cutoff
+  filter_samples
+  run_pca
+  run_gwas (imputed INFO >= 0.3–0.8, per chromosome)
 ```
 
 ## Requirements
