@@ -3,6 +3,7 @@
 import pytest
 
 from statgen_mcp.tools.filter_samples import FilterSamplesInput, run_filter_samples
+from statgen_mcp.tools.gwas import GwasInput, _build_covar_file, run_gwas
 from statgen_mcp.tools.king import KingInput, run_king_cutoff
 from statgen_mcp.tools.pca import PcaInput, run_pca
 from statgen_mcp.tools.vcf_qc import VcfQcInput, run_vcf_qc
@@ -278,6 +279,118 @@ def test_filter_samples_both_dry_run(tmp_path, monkeypatch):
     assert result.status == "dry_run"
     assert "--keep" in result.command_preview
     assert "--remove" in result.command_preview
+
+
+# ---------------------------------------------------------------------------
+# GWAS
+# ---------------------------------------------------------------------------
+
+def test_gwas_missing_plink():
+    params = GwasInput(input_prefix="/nonexistent/data", output_prefix="out", pheno_file="/x.txt")
+    result = run_gwas(params)
+    assert result.status == "failed"
+
+
+def test_gwas_defaults():
+    params = GwasInput(input_prefix="x", output_prefix="y", pheno_file="z.txt")
+    assert params.n_pcs == 10
+    assert params.firth_fallback is True
+    assert params.ci is True
+    assert params.pheno_name is None
+
+
+def test_gwas_dry_run_no_covars(tmp_path, monkeypatch):
+    for ext in [".bed", ".bim", ".fam"]:
+        (tmp_path / f"data{ext}").touch()
+    pheno = tmp_path / "pheno.txt"
+    pheno.write_text("#FID\tIID\tT2D\n0\tNA12878\t1\n")
+    monkeypatch.setenv("STATGEN_MCP_CONFIG", "")
+    params = GwasInput(
+        input_prefix=str(tmp_path / "data"),
+        output_prefix="out",
+        pheno_file=str(pheno),
+        dry_run=True,
+    )
+    result = run_gwas(params)
+    assert result.status == "dry_run"
+    assert "--glm" in result.command_preview
+    assert "hide-covar" in result.command_preview
+    assert "firth-fallback" in result.command_preview
+    assert "--covar" not in result.command_preview
+
+
+def test_gwas_dry_run_with_pheno_name(tmp_path, monkeypatch):
+    for ext in [".bed", ".bim", ".fam"]:
+        (tmp_path / f"data{ext}").touch()
+    pheno = tmp_path / "pheno.txt"
+    pheno.write_text("#FID\tIID\tT2D\tBMI\n0\tNA12878\t1\t25.3\n")
+    monkeypatch.setenv("STATGEN_MCP_CONFIG", "")
+    params = GwasInput(
+        input_prefix=str(tmp_path / "data"),
+        output_prefix="out",
+        pheno_file=str(pheno),
+        pheno_name="T2D",
+        dry_run=True,
+    )
+    result = run_gwas(params)
+    assert result.status == "dry_run"
+    assert "--pheno-name" in result.command_preview
+    assert "T2D" in result.command_preview
+
+
+def test_gwas_dry_run_quantitative_no_firth(tmp_path, monkeypatch):
+    for ext in [".bed", ".bim", ".fam"]:
+        (tmp_path / f"data{ext}").touch()
+    pheno = tmp_path / "pheno.txt"
+    pheno.write_text("#FID\tIID\tBMI\n0\tNA12878\t25.3\n")
+    monkeypatch.setenv("STATGEN_MCP_CONFIG", "")
+    params = GwasInput(
+        input_prefix=str(tmp_path / "data"),
+        output_prefix="out",
+        pheno_file=str(pheno),
+        trait_type="quantitative",
+        dry_run=True,
+    )
+    result = run_gwas(params)
+    assert result.status == "dry_run"
+    assert "firth-fallback" not in result.command_preview
+
+
+def test_build_covar_file_eigenvec_only(tmp_path):
+    eigenvec = tmp_path / "pca.eigenvec"
+    eigenvec.write_text(
+        "#FID\tIID\tPC1\tPC2\tPC3\n"
+        "0\tNA12878\t0.1\t-0.2\t0.05\n"
+        "0\tHG00096\t-0.1\t0.3\t0.01\n"
+    )
+    out = _build_covar_file(None, str(eigenvec), 2, tmp_path)
+    assert out is not None
+    content = open(out).read()
+    assert "PC1" in content
+    assert "PC2" in content
+    assert "PC3" not in content
+
+
+def test_build_covar_file_merge(tmp_path):
+    covar = tmp_path / "covars.txt"
+    covar.write_text("#FID\tIID\tAGE\tSEX\n0\tNA12878\t45\t1\n0\tHG00096\t32\t2\n")
+    eigenvec = tmp_path / "pca.eigenvec"
+    eigenvec.write_text(
+        "#FID\tIID\tPC1\tPC2\n"
+        "0\tNA12878\t0.1\t-0.2\n"
+        "0\tHG00096\t-0.1\t0.3\n"
+    )
+    out = _build_covar_file(str(covar), str(eigenvec), 2, tmp_path)
+    assert out is not None
+    content = open(out).read()
+    assert "AGE" in content
+    assert "SEX" in content
+    assert "PC1" in content
+    assert "PC2" in content
+
+
+def test_build_covar_file_none_when_no_inputs(tmp_path):
+    assert _build_covar_file(None, None, 10, tmp_path) is None
 
 
 # ---------------------------------------------------------------------------

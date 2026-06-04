@@ -12,6 +12,7 @@ from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
 from statgen_mcp.tools.filter_samples import FilterSamplesInput, run_filter_samples
+from statgen_mcp.tools.gwas import GwasInput, run_gwas
 from statgen_mcp.tools.king import KingInput, run_king_cutoff
 from statgen_mcp.tools.pca import PcaInput, run_pca
 from statgen_mcp.tools.vcf_qc import VcfQcInput, run_vcf_qc
@@ -61,6 +62,17 @@ async def list_tools() -> list[Tool]:
             inputSchema=PcaInput.model_json_schema(),
         ),
         Tool(
+            name="run_gwas",
+            description=(
+                "Run genome-wide association study using PLINK2 --glm. "
+                "Merges user covariates and PCA eigenvec into a combined covariate file. "
+                "Auto-detects binary vs quantitative trait; use firth_fallback=True (default) for binary traits. "
+                "Run per chromosome on QC'd PLINK files; concatenate summary stats across chromosomes afterward. "
+                "Input should be prepared with vcf_qc. PCs from run_pca should use INFO >= 0.99 or genotyped variants."
+            ),
+            inputSchema=GwasInput.model_json_schema(),
+        ),
+        Tool(
             name="filter_samples",
             description=(
                 "Filter samples from a PLINK dataset using --keep and/or --remove. "
@@ -87,6 +99,11 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         if name == "vcf_qc":
             params = VcfQcInput(**arguments)
             result = run_vcf_qc(params)
+            return [TextContent(type="text", text=result.model_dump_json(indent=2))]
+
+        elif name == "run_gwas":
+            params = GwasInput(**arguments)
+            result = run_gwas(params)
             return [TextContent(type="text", text=result.model_dump_json(indent=2))]
 
         elif name == "filter_samples":
