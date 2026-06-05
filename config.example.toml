@@ -5,14 +5,14 @@
 # Options: local | slurm | aws | gcp | azure
 backend = "local"
 
+# Where to write run outputs (timestamped subdirectories per job)
+output_dir = "~/statgen-mcp-runs"
+
 [tools]
 # plink2 handles QC, relatedness (--king-cutoff), and PCA
 plink2 = "plink2"
 # flashpca is optional - only needed for very large cohorts (>100k samples)
 flashpca = "flashpca"
-
-# Where to write run outputs (timestamped subdirectories per job)
-output_dir = "~/statgen-mcp-runs"
 
 
 # Uncomment when using SLURM
