@@ -47,16 +47,31 @@ Run `run_gwas` per chromosome on imputed variants (INFO >= 0.3-0.8). Pass PCs as
 
 ## Installation
 
-```bash
-pip install statgen-mcp
-```
+### Local / workstation (conda recommended)
 
-With plotting support:
+conda can install the Python package and all binary dependencies together via [bioconda](https://bioconda.github.io/):
+
 ```bash
+conda create -n statgen-mcp -c bioconda -c conda-forge plink2 bcftools python>=3.11
+conda activate statgen-mcp
 pip install "statgen-mcp[plots]"
 ```
 
-Or from source:
+### HPC clusters (e.g. Compute Canada / Alliance)
+
+Many HPC clusters discourage conda due to Lustre filesystem overhead. Use the cluster module system for binaries and a Python virtualenv for the package:
+
+```bash
+module load plink2 bcftools   # exact module names vary by cluster
+python -m venv ~/.venv/statgen-mcp
+source ~/.venv/statgen-mcp/bin/activate
+pip install "statgen-mcp[plots]"
+```
+
+Add the `module load` and `source` lines to your `~/.bashrc` (or job script) so the environment is active when the MCP server starts.
+
+### From source
+
 ```bash
 git clone https://github.com/yuan557/statgen-mcp
 cd statgen-mcp
