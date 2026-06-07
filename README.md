@@ -1,11 +1,11 @@
 # statgen-mcp
 
-An MCP server that lets any agentic AI (e.g. Claude, Gemini, Codex) act as an adaptive orchestrator for statistical genetics pipelines. Instead of writing a Snakefile, you tell the agent what you want - it calls the tools, reads intermediate outputs, and adjusts parameters along the way.
+An MCP server that wraps **PLINK2** and **bcftools** and lets any agentic AI (e.g. Claude, Gemini, Codex) act as an adaptive orchestrator for statistical genetics pipelines. Instead of writing a Snakefile, you tell the agent what you want — it calls the tools, reads intermediate outputs, and adjusts parameters along the way.
 
 **Example:** "QC the imputed VCF, remove related samples, run PCA, then run GWAS on BMI adjusting for age, sex, and PCs."
 The agent will chain `vcf_qc`, `king_cutoff`, `filter_samples`, `run_pca`, and `run_gwas`, pick `n_pcs` from the eigenvalue curve, and flag anything unexpected in the QC logs.
 
-## Tools
+## Implemented tools
 
 | Tool | What it does |
 |------|-------------|
@@ -14,11 +14,13 @@ The agent will chain `vcf_qc`, `king_cutoff`, `filter_samples`, `run_pca`, and `
 | `het_check` | Heterozygosity QC via PLINK2 `--het`. Flags contaminated samples (excess het) and inbred samples (deficient het) by F statistic SD cutoff. Writes a remove file for `filter_samples`. |
 | `filter_samples` | Keep or remove samples by FID/IID list: ancestry subsets, PCA outliers, kinship exclusions. |
 | `run_pca` | LD-prune then PCA via PLINK2. Optionally excludes high-LD regions (MHC, inversions). Outputs `.eigenvec` / `.eigenval`. |
-| `run_gwas` | PLINK2 `--glm` per chromosome. Merges user covariates + PCA eigenvec internally. Firth fallback for binary traits. |
+| `run_gwas` | PLINK2 `--glm` on the full dataset. Merges user covariates + PCA eigenvec internally. Firth fallback for binary traits. |
 | `plot_pca` | PCA scatter plots coloured by population label. |
 | `plot_gwas` | Manhattan plot with genome-wide / suggestive significance lines and lambda GC. |
 | `plot_qq` | QQ plot with lambda GC annotation. |
 | `check_tools` | Verify required binaries (plink2, bcftools) are installed and show versions. |
+
+All tools accept both **PLINK1** (`.bed/.bim/.fam`) and **PLINK2 native** (`.pgen/.psam/.pvar`) format. Format is auto-detected from the input prefix; output format matches input format. `vcf_qc` additionally accepts VCF/VCF.gz and always outputs PLINK1 bed format.
 
 ## Intended pipeline order
 
@@ -37,7 +39,7 @@ Pass the remove files from step 2 to `filter_samples`.
 Run `run_pca` on the clean, filtered dataset. Review `plot_pca`. Choose n_pcs from the eigenvalue curve.
 
 **Step 5: GWAS**
-Run `run_gwas` per chromosome on imputed variants (INFO >= 0.3-0.8). Pass PCs as covariates. Review `plot_gwas` and `plot_qq`; check lambda GC.
+Run `run_gwas` on imputed variants (INFO >= 0.3-0.8). Pass PCs as covariates. Review `plot_gwas` and `plot_qq`; check lambda GC.
 
 ## Requirements
 
@@ -106,7 +108,7 @@ Works with any MCP-compatible agent. Examples:
 
 Other agents (Gemini CLI, Codex CLI, etc.) - consult their MCP client documentation for the equivalent config.
 
-## Roadmap
+## Roadmap (not yet implemented)
 
 - `merge_plink`: merge per-chromosome PLINK files for genome-wide PCA/KING
 - `sanity_check`: sex concordance across phenotype file, .fam, and chrX
