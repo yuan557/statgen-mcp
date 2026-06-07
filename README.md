@@ -48,6 +48,19 @@ Run `run_pca` on the clean, filtered dataset. Review `plot_pca`. Choose n_pcs fr
 **Step 5: GWAS**
 Run `run_gwas` on genotyped or imputed variants (with an appropriate INFO threshold). Pass PCs as covariates. Review `plot_gwas` and `plot_qq`; check lambda GC.
 
+## Example output
+
+Pipeline run on 504 East Asian samples from the 1000 Genomes Project (simulated binary trait, 5 planted causal SNPs):
+
+**PCA** — clean subpopulation separation (CDX/CHB/CHS/JPT/KHV):
+![PCA](docs/images/pca.png)
+
+**Manhattan plot** — λ_GC = 1.038, genome-wide hits at planted causal loci:
+![Manhattan](docs/images/manhattan.png)
+
+**QQ plot** — well-controlled inflation, signal departing at tail:
+![QQ](docs/images/qq.png)
+
 ## Requirements
 
 - Python >= 3.11
