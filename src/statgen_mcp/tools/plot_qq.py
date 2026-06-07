@@ -62,7 +62,8 @@ def run_plot_qq(params: PlotQqInput) -> PlotQqResult:
         )
 
     try:
-        df = pd.read_csv(params.summary_stats_file, sep="\t", comment="#", low_memory=False)
+        df = pd.read_csv(params.summary_stats_file, sep="\t", low_memory=False)
+        df.columns = [c.lstrip("#") for c in df.columns]
 
         if params.p_col not in df.columns:
             return PlotQqResult(

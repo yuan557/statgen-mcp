@@ -20,7 +20,7 @@ class PlotGwasInput(BaseModel):
     output_path: str = Field(description="Output PNG file path")
     trait_name: str = Field(default="Trait", description="Trait name for plot title")
     p_col: str = Field(default="P", description="Column name for p-values")
-    chr_col: str = Field(default="#CHROM", description="Column name for chromosome")
+    chr_col: str = Field(default="CHROM", description="Column name for chromosome")
     pos_col: str = Field(default="POS", description="Column name for position")
     significance_line: float = Field(default=5e-8, description="Genome-wide significance threshold")
     suggestive_line: float | None = Field(default=1e-5, description="Suggestive significance threshold")
@@ -63,7 +63,8 @@ def run_plot_gwas(params: PlotGwasInput) -> PlotGwasResult:
         )
 
     try:
-        df = pd.read_csv(params.summary_stats_file, sep="\t", comment="#", low_memory=False)
+        df = pd.read_csv(params.summary_stats_file, sep="\t", low_memory=False)
+        df.columns = [c.lstrip("#") for c in df.columns]
 
         for col in [params.p_col, params.chr_col, params.pos_col]:
             if col not in df.columns:
