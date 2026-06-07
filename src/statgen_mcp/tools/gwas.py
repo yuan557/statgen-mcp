@@ -11,11 +11,17 @@ from pydantic import BaseModel, Field
 from statgen_mcp.config import get_config
 from statgen_mcp.executors.base import get_executor
 from statgen_mcp.utils.file_io import list_output_files, make_run_dir, parse_plink2_log
-from statgen_mcp.utils.validation import ValidationError, require_binary, require_file
+from statgen_mcp.utils.validation import (
+    ValidationError,
+    detect_input_format,
+    require_binary,
+    require_file,
+    require_plink_files,
+)
 
 
 class GwasInput(BaseModel):
-    input_prefix: str = Field(description="QC'd PLINK prefix (without .bed)")
+    input_prefix: str = Field(description="QC'd PLINK prefix (without .bed/.pgen extension)")
     output_prefix: str = Field(description="Output prefix for GWAS results")
     pheno_file: str = Field(
         description="Phenotype file (FID IID TRAIT1 [TRAIT2 ...]). Space/tab-delimited."
@@ -140,11 +146,8 @@ def run_gwas(params: GwasInput) -> GwasResult:
 
     try:
         plink2 = require_binary(cfg.tools.plink2)
-        require_file(
-            params.input_prefix + ".bed",
-            params.input_prefix + ".bim",
-            params.input_prefix + ".fam",
-        )
+        fmt = detect_input_format(params.input_prefix)
+        require_plink_files(params.input_prefix, fmt)
         require_file(params.pheno_file)
         if params.covar_file:
             require_file(params.covar_file)
@@ -164,9 +167,11 @@ def run_gwas(params: GwasInput) -> GwasResult:
     if params.firth_fallback and params.trait_type != "quantitative":
         glm_modifiers.append("firth-fallback")
 
+    plink_flag = "--pfile" if fmt == "plink2" else "--bfile"
+
     cmd = [
         plink2,
-        "--bfile", params.input_prefix,
+        plink_flag, params.input_prefix,
         "--no-psam-pheno",
         "--pheno", params.pheno_file,
     ]

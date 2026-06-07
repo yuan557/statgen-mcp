@@ -664,3 +664,115 @@ def test_plot_gwas_dry_run(tmp_path):
     result = run_plot_gwas(params)
     assert result.status == "dry_run"
     assert "plot_gwas" in result.command_preview
+
+
+# ---------------------------------------------------------------------------
+# pgen format (plink2 native) dry-run tests
+# ---------------------------------------------------------------------------
+
+def _make_pgen(tmp_path, name="data"):
+    for ext in [".pgen", ".psam", ".pvar"]:
+        (tmp_path / f"{name}{ext}").touch()
+
+
+def test_vcf_qc_pgen_dry_run(tmp_path):
+    _make_pgen(tmp_path)
+    params = VcfQcInput(
+        input_prefix=str(tmp_path / "data"),
+        output_prefix="out",
+        dry_run=True,
+    )
+    result = run_vcf_qc(params)
+    assert result.status == "dry_run"
+    assert "--pfile" in result.command_preview
+    assert "--make-pgen" in result.command_preview
+
+
+def test_filter_samples_pgen_dry_run(tmp_path, monkeypatch):
+    _make_pgen(tmp_path)
+    keep = tmp_path / "keep.txt"
+    keep.write_text("0 NA12878\n")
+    monkeypatch.setenv("STATGEN_MCP_CONFIG", "")
+    params = FilterSamplesInput(
+        input_prefix=str(tmp_path / "data"),
+        output_prefix="out",
+        keep_file=str(keep),
+        dry_run=True,
+    )
+    result = run_filter_samples(params)
+    assert result.status == "dry_run"
+    assert "--pfile" in result.command_preview
+    assert "--make-pgen" in result.command_preview
+
+
+def test_king_report_only_pgen_dry_run(tmp_path, monkeypatch):
+    _make_pgen(tmp_path)
+    monkeypatch.setenv("STATGEN_MCP_CONFIG", "")
+    params = KingInput(
+        input_prefix=str(tmp_path / "data"),
+        output_prefix="out",
+        report_only=True,
+        dry_run=True,
+    )
+    result = run_king_cutoff(params)
+    assert result.status == "dry_run"
+    assert "--pfile" in result.command_preview
+    assert "--make-king-table" in result.command_preview
+
+
+def test_king_cutoff_pgen_dry_run(tmp_path, monkeypatch):
+    _make_pgen(tmp_path)
+    monkeypatch.setenv("STATGEN_MCP_CONFIG", "")
+    params = KingInput(
+        input_prefix=str(tmp_path / "data"),
+        output_prefix="out",
+        report_only=False,
+        dry_run=True,
+    )
+    result = run_king_cutoff(params)
+    assert result.status == "dry_run"
+    assert "--pfile" in result.command_preview
+    assert "--make-pgen" in result.command_preview
+
+
+def test_pca_pgen_dry_run(tmp_path):
+    _make_pgen(tmp_path)
+    params = PcaInput(
+        input_prefix=str(tmp_path / "data"),
+        output_prefix="out_pca",
+        dry_run=True,
+    )
+    result = run_pca(params)
+    assert result.status == "dry_run"
+    assert "--pfile" in result.command_preview
+    assert "indep-pairwise" in result.command_preview
+
+
+def test_gwas_pgen_dry_run(tmp_path, monkeypatch):
+    _make_pgen(tmp_path)
+    pheno = tmp_path / "pheno.txt"
+    pheno.write_text("#FID\tIID\tT2D\n0\tNA12878\t1\n")
+    monkeypatch.setenv("STATGEN_MCP_CONFIG", "")
+    params = GwasInput(
+        input_prefix=str(tmp_path / "data"),
+        output_prefix="out",
+        pheno_file=str(pheno),
+        dry_run=True,
+    )
+    result = run_gwas(params)
+    assert result.status == "dry_run"
+    assert "--pfile" in result.command_preview
+    assert "--glm" in result.command_preview
+
+
+def test_het_check_pgen_dry_run(tmp_path):
+    _make_pgen(tmp_path)
+    params = HetCheckInput(
+        input_prefix=str(tmp_path / "data"),
+        output_prefix="het_out",
+        dry_run=True,
+    )
+    result = run_het_check(params)
+    assert result.status == "dry_run"
+    assert "--pfile" in result.command_preview
+    assert "--het" in result.command_preview

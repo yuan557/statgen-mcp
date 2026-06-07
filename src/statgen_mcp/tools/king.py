@@ -12,7 +12,12 @@ from pydantic import BaseModel, Field
 from statgen_mcp.config import get_config
 from statgen_mcp.executors.base import JobResult, get_executor
 from statgen_mcp.utils.file_io import list_output_files, make_run_dir, parse_plink2_log
-from statgen_mcp.utils.validation import ValidationError, require_binary, require_file
+from statgen_mcp.utils.validation import (
+    ValidationError,
+    detect_input_format,
+    require_binary,
+    require_plink_files,
+)
 
 
 KINSHIP_THRESHOLDS = {
@@ -24,7 +29,7 @@ KINSHIP_THRESHOLDS = {
 
 
 class KingInput(BaseModel):
-    input_prefix: str = Field(description="PLINK prefix (without .bed)")
+    input_prefix: str = Field(description="PLINK prefix (without .bed/.pgen extension)")
     output_prefix: str = Field(description="Output PLINK prefix")
     king_cutoff: float = Field(
         default=0.0442,
@@ -69,11 +74,8 @@ def run_king_cutoff(params: KingInput) -> KingResult:
 
     try:
         plink2 = require_binary(cfg.tools.plink2)
-        require_file(
-            params.input_prefix + ".bed",
-            params.input_prefix + ".bim",
-            params.input_prefix + ".fam",
-        )
+        fmt = detect_input_format(params.input_prefix)
+        require_plink_files(params.input_prefix, fmt)
     except ValidationError as e:
         return KingResult(status="failed", error_message=str(e))
 
@@ -81,20 +83,23 @@ def run_king_cutoff(params: KingInput) -> KingResult:
     run_dir = make_run_dir(cfg.output_dir, job_name)
     out = run_dir / Path(params.output_prefix).name
 
+    plink_flag = "--pfile" if fmt == "plink2" else "--bfile"
+
     if params.report_only:
         cmd = [
             plink2,
-            "--bfile", params.input_prefix,
+            plink_flag, params.input_prefix,
             "--make-king-table",
             "--king-table-filter", str(params.king_cutoff),
             "--out", str(out),
         ]
     else:
+        make_flag = "--make-pgen" if fmt == "plink2" else "--make-bed"
         cmd = [
             plink2,
-            "--bfile", params.input_prefix,
+            plink_flag, params.input_prefix,
             "--king-cutoff", str(params.king_cutoff),
-            "--make-bed",
+            make_flag,
             "--out", str(out),
         ]
 
@@ -133,9 +138,10 @@ def run_king_cutoff(params: KingInput) -> KingResult:
             runtime_seconds=job.runtime_seconds,
         )
 
+    plink_exts = [".pgen", ".psam", ".pvar"] if fmt == "plink2" else [".bed", ".bim", ".fam"]
     output_files = list_output_files(
         run_dir,
-        [".bed", ".bim", ".fam", ".log", ".king.cutoff.out.id", ".king.cutoff.in.id"]
+        plink_exts + [".log", ".king.cutoff.out.id", ".king.cutoff.in.id"]
     )
     return KingResult(
         status="success",

@@ -9,11 +9,16 @@ from pydantic import BaseModel, Field
 from statgen_mcp.config import get_config
 from statgen_mcp.executors.base import get_executor
 from statgen_mcp.utils.file_io import list_output_files, make_run_dir, parse_plink2_log
-from statgen_mcp.utils.validation import ValidationError, require_binary, require_file
+from statgen_mcp.utils.validation import (
+    ValidationError,
+    detect_input_format,
+    require_binary,
+    require_plink_files,
+)
 
 
 class PcaInput(BaseModel):
-    input_prefix: str = Field(description="PLINK prefix (without .bed)")
+    input_prefix: str = Field(description="PLINK prefix (without .bed/.pgen extension)")
     output_prefix: str = Field(description="Output prefix for PCA files")
     n_pcs: int = Field(default=20, description="Number of principal components to compute")
     ld_window: int = Field(default=200, description="LD pruning window size in variants")
@@ -52,11 +57,8 @@ def run_pca(params: PcaInput) -> PcaResult:
 
     try:
         plink2 = require_binary(cfg.tools.plink2)
-        require_file(
-            params.input_prefix + ".bed",
-            params.input_prefix + ".bim",
-            params.input_prefix + ".fam",
-        )
+        fmt = detect_input_format(params.input_prefix)
+        require_plink_files(params.input_prefix, fmt)
     except ValidationError as e:
         return PcaResult(status="failed", error_message=str(e))
 
@@ -65,9 +67,12 @@ def run_pca(params: PcaInput) -> PcaResult:
     executor = get_executor(cfg.executor.backend)
     pruned_prefix = str(out) + "_pruned"
 
+    plink_flag = "--pfile" if fmt == "plink2" else "--bfile"
+    make_flag = "--make-pgen" if fmt == "plink2" else "--make-bed"
+
     prune_cmd = [
         plink2,
-        "--bfile", params.input_prefix,
+        plink_flag, params.input_prefix,
         "--indep-pairwise",
         str(params.ld_window),
         str(params.ld_step),
@@ -83,7 +88,7 @@ def run_pca(params: PcaInput) -> PcaResult:
             status="dry_run",
             command_preview=(
                 f"Step 1 (LD prune{ld_note}):\n{' '.join(str(c) for c in prune_cmd)}\n\n"
-                f"Step 2 (PCA): plink2 --bfile {pruned_prefix} --pca {params.n_pcs} --out {out}"
+                f"Step 2 (PCA): plink2 {plink_flag} {pruned_prefix} --pca {params.n_pcs} --out {out}"
             ),
             n_pcs=params.n_pcs,
         )
@@ -94,9 +99,9 @@ def run_pca(params: PcaInput) -> PcaResult:
 
     extract_cmd = [
         plink2,
-        "--bfile", params.input_prefix,
+        plink_flag, params.input_prefix,
         "--extract", str(out) + "_prune.prune.in",
-        "--make-bed",
+        make_flag,
         "--out", pruned_prefix,
     ]
     extract_job = executor.run(extract_cmd, "ld_extract", run_dir)
@@ -107,7 +112,7 @@ def run_pca(params: PcaInput) -> PcaResult:
 
     pca_cmd = [
         plink2,
-        "--bfile", pca_input,
+        plink_flag, pca_input,
         "--pca", str(params.n_pcs),
     ]
     if params.approx:

@@ -9,11 +9,17 @@ from pydantic import BaseModel, Field, model_validator
 from statgen_mcp.config import get_config
 from statgen_mcp.executors.base import get_executor
 from statgen_mcp.utils.file_io import list_output_files, make_run_dir, parse_plink2_log
-from statgen_mcp.utils.validation import ValidationError, require_binary, require_file
+from statgen_mcp.utils.validation import (
+    ValidationError,
+    detect_input_format,
+    require_binary,
+    require_file,
+    require_plink_files,
+)
 
 
 class FilterSamplesInput(BaseModel):
-    input_prefix: str = Field(description="PLINK prefix (without .bed)")
+    input_prefix: str = Field(description="PLINK prefix (without .bed/.pgen extension)")
     output_prefix: str = Field(description="Output PLINK prefix")
     keep_file: str | None = Field(
         default=None,
@@ -57,11 +63,8 @@ def run_filter_samples(params: FilterSamplesInput) -> FilterSamplesResult:
 
     try:
         plink2 = require_binary(cfg.tools.plink2)
-        require_file(
-            params.input_prefix + ".bed",
-            params.input_prefix + ".bim",
-            params.input_prefix + ".fam",
-        )
+        fmt = detect_input_format(params.input_prefix)
+        require_plink_files(params.input_prefix, fmt)
         if params.keep_file:
             require_file(params.keep_file)
         if params.remove_file:
@@ -72,12 +75,15 @@ def run_filter_samples(params: FilterSamplesInput) -> FilterSamplesResult:
     run_dir = make_run_dir(cfg.output_dir, "filter_samples")
     out = run_dir / Path(params.output_prefix).name
 
-    cmd = [plink2, "--bfile", params.input_prefix]
+    plink_flag = "--pfile" if fmt == "plink2" else "--bfile"
+    make_flag = "--make-pgen" if fmt == "plink2" else "--make-bed"
+
+    cmd = [plink2, plink_flag, params.input_prefix]
     if params.keep_file:
         cmd += ["--keep", params.keep_file]
     if params.remove_file:
         cmd += ["--remove", params.remove_file]
-    cmd += ["--make-bed", "--out", str(out)]
+    cmd += [make_flag, "--out", str(out)]
 
     executor = get_executor(cfg.executor.backend)
     job = executor.run(cmd=cmd, job_name="filter_samples", work_dir=run_dir, dry_run=params.dry_run)
@@ -90,7 +96,8 @@ def run_filter_samples(params: FilterSamplesInput) -> FilterSamplesResult:
 
     log_path = Path(str(out) + ".log")
     log_summary = parse_plink2_log(log_path)
-    output_files = list_output_files(run_dir, [".bed", ".bim", ".fam", ".log"])
+    out_exts = [".pgen", ".psam", ".pvar", ".log"] if fmt == "plink2" else [".bed", ".bim", ".fam", ".log"]
+    output_files = list_output_files(run_dir, out_exts)
 
     samples_before = log_summary.get("samples")
     samples_after = log_summary.get("samples_after")

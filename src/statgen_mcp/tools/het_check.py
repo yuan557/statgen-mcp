@@ -10,11 +10,16 @@ from pydantic import BaseModel, Field
 from statgen_mcp.config import get_config
 from statgen_mcp.executors.base import get_executor
 from statgen_mcp.utils.file_io import make_run_dir
-from statgen_mcp.utils.validation import ValidationError, require_binary, require_file
+from statgen_mcp.utils.validation import (
+    ValidationError,
+    detect_input_format,
+    require_binary,
+    require_plink_files,
+)
 
 
 class HetCheckInput(BaseModel):
-    input_prefix: str = Field(description="PLINK prefix (without .bed)")
+    input_prefix: str = Field(description="PLINK prefix (without .bed/.pgen extension)")
     output_prefix: str = Field(description="Output prefix for het file and outlier list")
     sd_threshold: float = Field(
         default=3.0,
@@ -94,18 +99,16 @@ def run_het_check(params: HetCheckInput) -> HetCheckResult:
 
     try:
         plink2 = require_binary(cfg.tools.plink2)
-        require_file(
-            params.input_prefix + ".bed",
-            params.input_prefix + ".bim",
-            params.input_prefix + ".fam",
-        )
+        fmt = detect_input_format(params.input_prefix)
+        require_plink_files(params.input_prefix, fmt)
     except ValidationError as e:
         return HetCheckResult(status="failed", error_message=str(e))
 
     run_dir = make_run_dir(cfg.output_dir, "het_check")
     out = run_dir / Path(params.output_prefix).name
 
-    cmd = [plink2, "--bfile", params.input_prefix, "--het", "--out", str(out)]
+    plink_flag = "--pfile" if fmt == "plink2" else "--bfile"
+    cmd = [plink2, plink_flag, params.input_prefix, "--het", "--out", str(out)]
 
     executor = get_executor(cfg.executor.backend)
     job = executor.run(cmd=cmd, job_name="het_check", work_dir=run_dir, dry_run=params.dry_run)

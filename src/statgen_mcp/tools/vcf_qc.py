@@ -18,12 +18,13 @@ from statgen_mcp.utils.validation import (
     detect_input_format,
     require_binary,
     require_file,
+    require_plink_files,
 )
 
 
 class VcfQcInput(BaseModel):
     input_prefix: str = Field(
-        description="PLINK prefix (without .bed) or path to VCF/VCF.gz"
+        description="PLINK prefix (without .bed/.pgen extension) or path to VCF/VCF.gz"
     )
     output_prefix: str = Field(
         description="Output PLINK prefix (without extension)"
@@ -135,12 +136,8 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
 
     try:
         fmt = detect_input_format(params.input_prefix)
-        if fmt == "plink":
-            require_file(
-                params.input_prefix + ".bed",
-                params.input_prefix + ".bim",
-                params.input_prefix + ".fam",
-            )
+        if fmt in ("plink1", "plink2"):
+            require_plink_files(params.input_prefix, fmt)
         else:
             require_file(params.input_prefix)
     except ValidationError as e:
@@ -153,7 +150,7 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
     warnings = []
     filter_expr = _bcftools_filter_expr(params) if fmt == "vcf" else None
 
-    if params.variant_source and fmt == "plink":
+    if params.variant_source and fmt in ("plink1", "plink2"):
         warnings.append("variant_source filtering requires VCF input and was skipped for PLINK input")
 
     vcf_input = params.input_prefix
@@ -205,7 +202,9 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
         vcf_input = filtered_vcf
 
     cmd = [plink2]
-    if fmt == "plink":
+    if fmt == "plink2":
+        cmd += ["--pfile", params.input_prefix]
+    elif fmt == "plink1":
         cmd += ["--bfile", params.input_prefix]
     else:
         cmd += ["--vcf", vcf_input]
@@ -224,7 +223,8 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
         cmd += ["--max-alleles", "2"]
     if params.snps_only:
         cmd += ["--snps-only", "just-acgt"]
-    cmd += ["--make-bed", "--out", str(out)]
+    make_flag = "--make-pgen" if fmt == "plink2" else "--make-bed"
+    cmd += [make_flag, "--out", str(out)]
 
     if params.dry_run:
         job: JobResult = executor.run(cmd=cmd, job_name="vcf_qc", work_dir=run_dir, dry_run=True)
@@ -248,7 +248,8 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
 
     log_path = Path(str(out) + ".log")
     log_summary = parse_plink2_log(log_path)
-    output_files = list_output_files(run_dir, [".bed", ".bim", ".fam", ".log"])
+    out_exts = [".pgen", ".psam", ".pvar", ".log"] if fmt == "plink2" else [".bed", ".bim", ".fam", ".log"]
+    output_files = list_output_files(run_dir, out_exts)
 
     if log_summary.get("samples_removed_missing", 0) > 0:
         warnings.append(

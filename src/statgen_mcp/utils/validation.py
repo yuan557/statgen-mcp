@@ -34,13 +34,23 @@ def require_range(value: float, lo: float, hi: float, name: str) -> None:
 
 
 def detect_input_format(prefix_or_vcf: str) -> str:
-    """Returns 'plink' or 'vcf' based on file existence."""
+    """Returns 'vcf', 'plink2' (pgen/psam/pvar), or 'plink1' (bed/bim/fam)."""
     p = Path(prefix_or_vcf)
     if p.suffix in (".vcf", ".gz"):
         return "vcf"
+    if Path(str(p) + ".pgen").exists():
+        return "plink2"
     if Path(str(p) + ".bed").exists():
-        return "plink"
+        return "plink1"
     raise ValidationError(
         f"Cannot detect format for '{prefix_or_vcf}'. "
-        "Provide a VCF/VCF.gz path or a PLINK prefix (without .bed extension)."
+        "Provide a VCF/VCF.gz path or a PLINK prefix (without .bed/.pgen extension)."
     )
+
+
+def require_plink_files(prefix: str, fmt: str) -> None:
+    """Validate that all expected PLINK binary files exist for the given format."""
+    if fmt == "plink2":
+        require_file(prefix + ".pgen", prefix + ".psam", prefix + ".pvar")
+    else:
+        require_file(prefix + ".bed", prefix + ".bim", prefix + ".fam")
