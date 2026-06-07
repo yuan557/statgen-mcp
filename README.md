@@ -15,8 +15,8 @@ The agent will chain `vcf_qc`, `king_cutoff`, `filter_samples`, `run_pca`, and `
 |------|-------------|
 | `vcf_qc` | MAF, MIND, GENO, HWE filtering via PLINK2. Pre-filters VCF by variant source (genotyped / imputed INFO score / WGS) via bcftools. |
 | `king_cutoff` | Relatedness analysis via PLINK2 KING. Report-only mode or filter mode (removes one sample per related pair). |
-| `het_check` | Heterozygosity QC via PLINK2 `--het`. Flags contaminated samples (excess het) and inbred samples (deficient het) by F statistic SD cutoff. Writes a remove file for `filter_samples`. |
-| `filter_samples` | Keep or remove samples by FID/IID list: ancestry subsets, PCA outliers, kinship exclusions. |
+| `het_check` | Heterozygosity QC via PLINK2 `--het`. Flags outliers that indicate contamination by F statistic SD cutoff (default ±3 SD). Writes a remove file for `filter_samples`. |
+| `filter_samples` | Keep or remove samples by FID/IID list: ancestry subsets, PCA outliers, kinship exclusions, het outliers. |
 | `run_pca` | LD-prune then PCA via PLINK2. Optionally excludes high-LD regions (MHC, inversions). Outputs `.eigenvec` / `.eigenval`. |
 | `run_gwas` | PLINK2 `--glm` on the full dataset. Merges user covariates + PCA eigenvec internally. Firth fallback for binary traits. |
 | `plot_pca` | PCA scatter plots coloured by population label. |
@@ -32,12 +32,15 @@ All tools accept both **PLINK1** (`.bed/.bim/.fam`) and **PLINK2 native** (`.pge
 Run `vcf_qc` on genotyped or high-confidence imputed variants (INFO >= 0.99). Outputs a clean PLINK dataset.
 
 **Step 2: Sample QC** (run all, collect remove files)
-- `het_check`: flag contaminated samples (excess heterozygosity) and inbred samples (deficient heterozygosity)
+- `het_check`: flag outliers that indicate contamination
 - `king_cutoff`: identify cryptic relatives
 - *(optional)* manual ancestry filtering using population labels
 
 **Step 3: Apply exclusions**
-Pass the remove files from step 2 to `filter_samples`.
+Pass the remove files from step 2 to `filter_samples`:
+- `.king.cutoff.out.id` from `king_cutoff` to remove related individuals
+- `het_outliers_remove.txt` from `het_check` to remove het outliers
+- *(optional)* ancestry subset file
 
 **Step 4: PCA**
 Run `run_pca` on the clean, filtered dataset. Review `plot_pca`. Choose n_pcs from the eigenvalue curve.
