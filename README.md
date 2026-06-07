@@ -24,7 +24,7 @@ The agent will chain `vcf_qc`, `king_cutoff`, `filter_samples`, `run_pca`, and `
 | `plot_qq` | QQ plot with lambda GC annotation. |
 | `check_tools` | Verify required binaries (plink2, bcftools) are installed and show versions. |
 
-All tools accept both **PLINK1** (`.bed/.bim/.fam`) and **PLINK2 native** (`.pgen/.psam/.pvar`) format. Format is auto-detected from the input prefix; output format matches input format. `vcf_qc` additionally accepts VCF/VCF.gz and always outputs PLINK1 bed format.
+All tools accept both **PLINK1** (`.bed/.bim/.fam`) and **PLINK2 native** (`.pgen/.psam/.pvar`) format. Format is auto-detected from the input prefix; output format matches input format. `vcf_qc` additionally accepts VCF/VCF.gz input, which always outputs PLINK1 bed format.
 
 ## Intended pipeline order
 
@@ -54,7 +54,7 @@ Pipeline run on 504 East Asian samples from the 1000 Genomes Project (simulated 
 
 ![Pipeline output panel](docs/images/pipeline_panel.png)
 
-λ_GC = 1.038, clean EAS subpopulation separation (CDX/CHB/CHS/JPT/KHV), genome-wide hits at planted causal loci.
+Clean EAS subpopulation separation (CDX/CHB/CHS/JPT/KHV), genome-wide hits at planted causal loci, well-controlled inflation (λ_GC = 1.038).
 
 ## Requirements
 
