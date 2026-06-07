@@ -21,4 +21,4 @@ jobs:
         run: pip install -e ".[dev,plots]"
 
       - name: Run tests
-        run: pytest tests/ -v
+        run: pytest tests/ -v --tb=short

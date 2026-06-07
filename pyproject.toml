@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "statgen-mcp"
 version = "0.1.0"
-description = "MCP server for statistical genetics (QC, GWAS, heritability, fine-mapping)"
+description = "MCP server exposing PLINK2 and bcftools as tools for agentic GWAS pipelines"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }

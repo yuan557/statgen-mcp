@@ -30,5 +30,8 @@ Thumbs.db
 # scripts (local dev/test scripts)
 scripts/
 
+# Local test data (generated locally, not committed)
+tests/data/
+
 # claude.md
 CLAUDE.md
