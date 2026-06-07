@@ -118,6 +118,10 @@ Other agents (Gemini CLI, Codex CLI, etc.) - consult their MCP client documentat
 - Heritability (LDSC, GCTA)
 - AWS Batch executor
 
+## Acknowledgements
+
+End-to-end pipeline validation uses the 1000 Genomes EAS dataset from the [GWASTutorial](https://github.com/Cloufield/GWASTutorial) repository by Cloufield et al. The dataset includes 504 East Asian samples, 1.23M variants, and a simulated binary phenotype with planted causal SNPs — a standard benchmark for GWAS pipeline validation.
+
 ## Compliance note
 
 You are responsible for ensuring your use complies with applicable regulations (HIPAA, GDPR, institutional data agreements).

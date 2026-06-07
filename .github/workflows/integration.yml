@@ -1,0 +1,66 @@
+name: Integration Tests
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'  # weekly, Monday 6am UTC
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package
+        run: pip install -e ".[dev,plots]"
+
+      - name: Cache plink2
+        uses: actions/cache@v4
+        id: cache-plink2
+        with:
+          path: ~/.local/bin/plink2
+          key: plink2-linux-latest-v1
+
+      - name: Install plink2
+        if: steps.cache-plink2.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.local/bin
+          wget -q https://s3.amazonaws.com/plink2-assets/plink2_linux_x86_64_latest.zip -O /tmp/plink2.zip
+          unzip /tmp/plink2.zip plink2 -d ~/.local/bin/
+          chmod +x ~/.local/bin/plink2
+
+      - name: Add plink2 to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Verify plink2
+        run: plink2 --version
+
+      - name: Cache GWASTutorial data
+        uses: actions/cache@v4
+        id: cache-tutorial
+        with:
+          path: ~/gwas_testdata/GWASTutorial
+          key: gwas-tutorial-v1
+
+      - name: Clone GWASTutorial (sparse)
+        if: steps.cache-tutorial.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse \
+            https://github.com/Cloufield/GWASTutorial \
+            ~/gwas_testdata/GWASTutorial
+          cd ~/gwas_testdata/GWASTutorial
+          git sparse-checkout set 01_Dataset
+
+      - name: Run integration tests
+        env:
+          GWAS_TUTORIAL_DIR: ${{ github.workspace }}/../../../gwas_testdata/GWASTutorial
+        run: |
+          GWAS_TUTORIAL_DIR=~/gwas_testdata/GWASTutorial \
+          pytest tests/test_integration.py -v --tb=short
