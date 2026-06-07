@@ -162,7 +162,7 @@ def _parse_king_table(path: Path) -> list[RelatedPair]:
         reader = csv.DictReader(f, delimiter="\t")
         for row in reader:
             pairs.append(RelatedPair(
-                sample1=row["#IID1"],
+                sample1=row["IID1"],
                 sample2=row["IID2"],
                 kinship=float(row["KINSHIP"]),
             ))

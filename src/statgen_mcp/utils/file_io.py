@@ -61,7 +61,7 @@ def parse_plink2_log(log_path: Path) -> dict:
 
     if re.search(r"linear regression", text, re.IGNORECASE):
         result["regression_type"] = "quantitative"
-    elif re.search(r"logistic regression", text, re.IGNORECASE):
+    elif re.search(r"logistic", text, re.IGNORECASE):
         result["regression_type"] = "binary"
 
     return result
