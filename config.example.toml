@@ -9,10 +9,9 @@ output_dir = "~/statgen-mcp-runs"
 backend = "local"
 
 [tools]
-# plink2 handles QC, relatedness (--king-cutoff), and PCA
+# Full paths if binaries are not on PATH, e.g. "/usr/local/bin/plink2"
 plink2 = "plink2"
-# flashpca is optional - only needed for very large cohorts (>100k samples)
-flashpca = "flashpca"
+bcftools = "bcftools"  # required for VCF variant source filtering
 
 
 # Uncomment when using SLURM

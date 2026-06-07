@@ -100,14 +100,11 @@ output_dir = "~/statgen-mcp-runs"
 backend = "local"   # or "slurm" on HPC
 
 [tools]
-plink2 = "plink2"   # full path if not on PATH, e.g. "/usr/local/bin/plink2"
+plink2 = "plink2"       # full path if not on PATH, e.g. "/usr/local/bin/plink2"
+bcftools = "bcftools"   # required for VCF variant source filtering
 ```
 
-SLURM options (partition, account, memory, time) are in `config.example.toml`. After setup, verify binaries are found:
-
-```bash
-statgen-mcp check_tools
-```
+SLURM options (partition, account, memory, time) are in `config.example.toml`.
 
 ## Agent setup
 
