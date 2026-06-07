@@ -63,7 +63,9 @@ conda can install the Python package and all binary dependencies together via [b
 ```bash
 conda create -n statgen-mcp -c bioconda -c conda-forge plink2 bcftools python>=3.11
 conda activate statgen-mcp
-pip install "statgen-mcp[plots]"
+git clone https://github.com/yuan557/statgen-mcp
+cd statgen-mcp
+pip install -e ".[plots]"
 ```
 
 ### HPC clusters (e.g. Compute Canada / Alliance)
@@ -72,20 +74,14 @@ Many HPC clusters discourage conda due to Lustre filesystem overhead. Use the cl
 
 ```bash
 module load plink2 bcftools   # exact module names vary by cluster
+git clone https://github.com/yuan557/statgen-mcp
+cd statgen-mcp
 python -m venv ~/.venv/statgen-mcp
 source ~/.venv/statgen-mcp/bin/activate
-pip install "statgen-mcp[plots]"
+pip install -e ".[plots]"
 ```
 
 Add the `module load` and `source` lines to your `~/.bashrc` (or job script) so the environment is active when the MCP server starts.
-
-### From source
-
-```bash
-git clone https://github.com/yuan557/statgen-mcp
-cd statgen-mcp
-pip install -e ".[plots]"
-```
 
 ## Configuration
 
@@ -94,7 +90,24 @@ mkdir -p ~/.statgen-mcp
 cp config.example.toml ~/.statgen-mcp/config.toml
 ```
 
-Output files go to `~/statgen-mcp-runs/` by default (one timestamped subdirectory per tool call). SLURM submission is supported - see `config.example.toml`.
+The key settings to review:
+
+```toml
+# Where outputs are written (one timestamped subdirectory per tool call)
+output_dir = "~/statgen-mcp-runs"
+
+[executor]
+backend = "local"   # or "slurm" on HPC
+
+[tools]
+plink2 = "plink2"   # full path if not on PATH, e.g. "/usr/local/bin/plink2"
+```
+
+SLURM options (partition, account, memory, time) are in `config.example.toml`. After setup, verify binaries are found:
+
+```bash
+statgen-mcp check_tools
+```
 
 ## Agent setup
 
@@ -111,7 +124,10 @@ Works with any MCP-compatible agent. Examples:
 }
 ```
 
-**Claude Desktop** - add the same block to `~/Library/Application Support/Claude/claude_desktop_config.json`.
+**Claude Desktop** - add the same block to the config file for your OS:
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+- Linux: `~/.config/Claude/claude_desktop_config.json`
 
 Other agents (Gemini CLI, Codex CLI, etc.) - consult their MCP client documentation for the equivalent config.
 
