@@ -4,7 +4,7 @@
 [![Integration Tests](https://github.com/yuan557/statgen-mcp/actions/workflows/integration.yml/badge.svg)](https://github.com/yuan557/statgen-mcp/actions/workflows/integration.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-An MCP server that wraps **PLINK2** and **bcftools** and lets any agentic AI (e.g. Claude, Gemini, Codex) act as an adaptive orchestrator for statistical genetics pipelines. Instead of writing a Snakefile, you tell the agent what you want — it calls the tools, reads intermediate outputs, and adjusts parameters along the way.
+An MCP server that wraps **PLINK2** and **bcftools** and lets any agentic AI (e.g. Claude, Gemini, Codex) act as an adaptive orchestrator for statistical genetics pipelines. Instead of writing a Snakefile, you tell the agent what you want, and it calls the tools, reads intermediate outputs, and adjusts parameters along the way.
 
 **Example:** "QC the imputed VCF, remove related samples, run PCA, then run GWAS on BMI adjusting for age, sex, and PCs."
 The agent will chain `vcf_qc`, `king_cutoff`, `filter_samples`, `run_pca`, and `run_gwas`, pick `n_pcs` from the eigenvalue curve, and flag anything unexpected in the QC logs.
