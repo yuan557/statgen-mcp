@@ -62,7 +62,7 @@ def run_filter_samples(params: FilterSamplesInput) -> FilterSamplesResult:
     cfg = get_config()
 
     try:
-        plink2 = require_binary(cfg.tools.plink2)
+        plink2 = cfg.tools.plink2 if params.dry_run else require_binary(cfg.tools.plink2)
         fmt = detect_input_format(params.input_prefix)
         require_plink_files(params.input_prefix, fmt)
         if params.keep_file:

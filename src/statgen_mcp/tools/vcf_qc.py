@@ -130,7 +130,7 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
     cfg = get_config()
 
     try:
-        plink2 = require_binary(cfg.tools.plink2)
+        plink2 = cfg.tools.plink2 if params.dry_run else require_binary(cfg.tools.plink2)
     except ValidationError as e:
         return VcfQcResult(status="failed", error_message=str(e))
 
