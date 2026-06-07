@@ -1,6 +1,7 @@
 # statgen-mcp
 
 [![Tests](https://github.com/yuan557/statgen-mcp/actions/workflows/tests.yml/badge.svg)](https://github.com/yuan557/statgen-mcp/actions/workflows/tests.yml)
+[![Integration Tests](https://github.com/yuan557/statgen-mcp/actions/workflows/integration.yml/badge.svg)](https://github.com/yuan557/statgen-mcp/actions/workflows/integration.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 An MCP server that wraps **PLINK2** and **bcftools** and lets any agentic AI (e.g. Claude, Gemini, Codex) act as an adaptive orchestrator for statistical genetics pipelines. Instead of writing a Snakefile, you tell the agent what you want — it calls the tools, reads intermediate outputs, and adjusts parameters along the way.
@@ -42,7 +43,7 @@ Pass the remove files from step 2 to `filter_samples`.
 Run `run_pca` on the clean, filtered dataset. Review `plot_pca`. Choose n_pcs from the eigenvalue curve.
 
 **Step 5: GWAS**
-Run `run_gwas` on imputed variants (INFO >= 0.3-0.8). Pass PCs as covariates. Review `plot_gwas` and `plot_qq`; check lambda GC.
+Run `run_gwas` on genotyped or imputed variants (with an appropriate INFO threshold). Pass PCs as covariates. Review `plot_gwas` and `plot_qq`; check lambda GC.
 
 ## Requirements
 
