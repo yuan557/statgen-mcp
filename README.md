@@ -124,7 +124,7 @@ Other agents (Gemini CLI, Codex CLI, etc.) - consult their MCP client documentat
 
 ## Acknowledgements
 
-End-to-end pipeline validation uses the 1000 Genomes EAS dataset from the [GWASTutorial](https://github.com/Cloufield/GWASTutorial) repository by Cloufield et al. The dataset includes 504 East Asian samples, 1.23M variants, and a simulated binary phenotype with planted causal SNPs — a standard benchmark for GWAS pipeline validation.
+End-to-end pipeline validation uses the 1000 Genomes EAS dataset from the [GWASTutorial](https://github.com/Cloufield/GWASTutorial) repository by Cloufield et al. The dataset includes 504 East Asian samples, 1.23M variants, and a simulated binary phenotype with planted causal SNPs.
 
 ## Compliance note
 
