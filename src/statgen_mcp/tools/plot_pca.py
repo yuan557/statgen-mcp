@@ -9,13 +9,32 @@ from pydantic import BaseModel, Field
 from statgen_mcp.utils.validation import ValidationError, require_file
 
 
-DEFAULT_COLORS = {
+SUPERPOP_COLORS = {
     "EUR": "#4878CF",
     "AFR": "#D65F5F",
     "EAS": "#6ACC65",
     "AMR": "#B47CC7",
     "SAS": "#C4AD66",
 }
+
+# matplotlib tab10 palette — used as fallback for arbitrary label sets
+_TAB10 = [
+    "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
+    "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
+]
+
+
+def _label_colors(unique_labels: list) -> dict:
+    """Map each label to a color: known superpops get fixed colors, rest use tab10."""
+    result = {}
+    cycle_idx = 0
+    for label in unique_labels:
+        if label in SUPERPOP_COLORS:
+            result[label] = SUPERPOP_COLORS[label]
+        else:
+            result[label] = _TAB10[cycle_idx % len(_TAB10)]
+            cycle_idx += 1
+    return result
 
 
 class PlotPcaInput(BaseModel):
@@ -105,14 +124,15 @@ def run_plot_pca(params: PlotPcaInput) -> PlotPcaResult:
             else None
         )
 
+        colors = _label_colors(unique_labels) if unique_labels is not None else {}
+
         for ax, pair in zip(axes, params.pc_pairs):
             xpc, ypc = f"PC{pair[0]}", f"PC{pair[1]}"
             if params.label_file and params.label_col in pcs.columns:
                 for label, grp in pcs.groupby(params.label_col):
-                    color = DEFAULT_COLORS.get(str(label), None)
                     ax.scatter(
                         grp[xpc], grp[ypc],
-                        c=color, s=params.point_size, alpha=params.alpha, label=label,
+                        color=colors[label], s=params.point_size, alpha=params.alpha, label=label,
                     )
             else:
                 ax.scatter(
@@ -125,7 +145,7 @@ def run_plot_pca(params: PlotPcaInput) -> PlotPcaResult:
 
         if unique_labels is not None:
             handles = [
-                mpatches.Patch(color=DEFAULT_COLORS.get(pop, "grey"), label=pop)
+                mpatches.Patch(color=colors[pop], label=pop)
                 for pop in unique_labels
             ]
             fig.legend(handles=handles, loc="lower center", ncol=min(len(unique_labels), 5),
