@@ -99,7 +99,8 @@ def run_plot_pca(params: PlotPcaInput) -> PlotPcaResult:
         )
 
     try:
-        pcs = pd.read_csv(params.eigenvec_file, sep="\t", comment="#", header=0)
+        pcs = pd.read_csv(params.eigenvec_file, sep="\t", header=0)
+        pcs.columns = [c.lstrip("#") for c in pcs.columns]
         pcs.columns = ["FID", "IID"] + [f"PC{i}" for i in range(1, len(pcs.columns) - 1)]
 
         n_samples = len(pcs)
