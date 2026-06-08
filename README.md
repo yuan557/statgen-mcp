@@ -47,7 +47,13 @@ Pass the remove files from step 2 to `filter_samples`:
 Run `run_pca` on the clean, filtered dataset. Review `plot_pca`. Choose n_pcs from the eigenvalue curve.
 
 **Step 5: GWAS**
-Run a second `data_qc` on your genotyped or imputed variants using a lower INFO threshold appropriate for GWAS (e.g. `min_info_score=0.3`). The Step 1 dataset (INFO >= 0.99) is for PCA and kinship only — using it for GWAS discards most imputed variants. Then run `run_gwas` on this new dataset, passing PCs as covariates. Review `plot_gwas` and `plot_qq`; check lambda GC.
+The Step 1 dataset is for PCA and kinship only. Run a second `data_qc` to produce the GWAS input — the right settings depend on your data type:
+
+- **Imputed:** use a lower INFO threshold (e.g. `min_info_score=0.3`, `variant_source="imputed"`). The 0.99 dataset discards most imputed variants.
+- **WGS:** `variant_source="wgs"` — no INFO filtering. Adjust MAF and other filters as appropriate for your GWAS.
+- **Genotyped array:** the Step 1 dataset is usually fine as-is; no second run needed.
+
+Then run `run_gwas` on this dataset, passing PCs as covariates. Review `plot_gwas` and `plot_qq`; check lambda GC.
 
 ## Example output
 
