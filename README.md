@@ -165,6 +165,7 @@ Pipeline complete.
 
 ## Roadmap (not yet implemented)
 
+- `run_gwas_regenie`: whole genome regression GWAS via Regenie. Step 1 fits the null model; step 2 runs per-chromosome association. Recommended over `run_gwas` for cohorts > 50k samples or severe case-control imbalance.
 - `sanity_check`: sex concordance across phenotype file, .fam, and chrX
 - `plot_kinship`: kinship histogram and IBS0 vs kinship scatter from `.kin0`
 - PRS (clump + threshold, internal and external summary stats)
