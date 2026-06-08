@@ -2,6 +2,7 @@
 
 import pytest
 
+import statgen_mcp.config as cfg_module
 from statgen_mcp.executors.base import SlurmExecutor, get_executor
 from statgen_mcp.tools.filter_samples import FilterSamplesInput, run_filter_samples
 from statgen_mcp.tools.gwas import GwasInput, _build_covar_file, run_gwas
@@ -13,7 +14,7 @@ from statgen_mcp.tools.plot_pca import PlotPcaInput, run_plot_pca
 from statgen_mcp.tools.plot_qq import PlotQqInput, compute_lambda_gc, run_plot_qq
 from statgen_mcp.tools.data_qc import DataQcInput, run_data_qc
 from statgen_mcp.tools.merge_plink import MergePlinkInput, run_merge_plink
-from statgen_mcp.utils.file_io import parse_plink2_log
+from statgen_mcp.utils.file_io import make_run_dir, parse_plink2_log
 
 
 # ---------------------------------------------------------------------------
@@ -478,6 +479,29 @@ def test_slurm_dry_run_respects_slurm_opts(tmp_path, monkeypatch):
     assert "gpu" in result.stdout
     assert "64G" in result.stdout
     assert "08:00:00" in result.stdout
+
+
+def test_slurm_dry_run_script_preview_has_newlines(tmp_path, monkeypatch):
+    monkeypatch.setenv("STATGEN_MCP_CONFIG", str(tmp_path / "no_config.toml"))
+    cfg_module._config = None
+    executor = SlurmExecutor()
+    result = executor.run(
+        cmd=["plink2", "--bfile", "data", "--out", "out"],
+        job_name="test_job",
+        work_dir=tmp_path,
+        dry_run=True,
+    )
+    lines = result.stdout.splitlines()
+    sbatch_lines = [l for l in lines if l.startswith("#SBATCH")]
+    assert len(sbatch_lines) >= 5, "each #SBATCH directive must be on its own line"
+
+
+def test_make_run_dir_tilde_expansion(tmp_path):
+    base = "~/statgen-mcp-runs"
+    run_dir = make_run_dir(base, "test_job")
+    assert not str(run_dir).startswith("~"), "tilde must be expanded to an absolute path"
+    assert run_dir.exists()
+    run_dir.rmdir()
 
 
 # ---------------------------------------------------------------------------
