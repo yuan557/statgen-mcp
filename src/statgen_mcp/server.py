@@ -20,6 +20,7 @@ from statgen_mcp.tools.plot_qq import PlotQqInput, run_plot_qq
 from statgen_mcp.tools.king import KingInput, run_king_cutoff
 from statgen_mcp.tools.pca import PcaInput, run_pca
 from statgen_mcp.tools.data_qc import DataQcInput, run_data_qc
+from statgen_mcp.tools.merge_plink import MergePlinkInput, run_merge_plink
 
 app = Server("statgen-mcp")
 
@@ -27,6 +28,17 @@ app = Server("statgen-mcp")
 @app.list_tools()
 async def list_tools() -> list[Tool]:
     return [
+        Tool(
+            name="merge_plink",
+            description=(
+                "Merge multiple PLINK datasets into one using PLINK2 --pmerge-list. "
+                "Typical use: combine per-chromosome PLINK files into a single genome-wide dataset "
+                "before running data_qc, king_cutoff, or run_pca. "
+                "Accepts PLINK1 (bed/bim/fam) or PLINK2 native (pgen/psam/pvar) input; "
+                "output format matches input format. At least two prefixes required."
+            ),
+            inputSchema=MergePlinkInput.model_json_schema(),
+        ),
         Tool(
             name="data_qc",
             description=(
@@ -141,7 +153,12 @@ async def list_tools() -> list[Tool]:
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     try:
-        if name == "data_qc":
+        if name == "merge_plink":
+            params = MergePlinkInput(**arguments)
+            result = run_merge_plink(params)
+            return [TextContent(type="text", text=result.model_dump_json(indent=2))]
+
+        elif name == "data_qc":
             params = DataQcInput(**arguments)
             result = run_data_qc(params)
             return [TextContent(type="text", text=result.model_dump_json(indent=2))]

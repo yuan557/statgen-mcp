@@ -13,6 +13,7 @@ The agent will chain `data_qc`, `king_cutoff`, `filter_samples`, `run_pca`, and 
 
 | Tool | What it does |
 |------|-------------|
+| `merge_plink` | Merge per-chromosome PLINK datasets into one genome-wide file via PLINK2 `--pmerge-list`. Accepts PLINK1 or PLINK2 native input. |
 | `data_qc` | MAF, MIND, GENO, HWE filtering via PLINK2. Accepts VCF, PLINK1, or PLINK2 native input. Pre-filters VCF by variant source (genotyped / imputed INFO score / WGS) via bcftools. |
 | `king_cutoff` | Relatedness analysis via PLINK2 KING. Report-only mode or filter mode (removes one sample per related pair, writes `.king.cutoff.out.id` for `filter_samples`). |
 | `het_check` | Heterozygosity QC via PLINK2 `--het`. Flags outliers that indicate contamination by F statistic SD cutoff (default ±3 SD). Writes a remove file for `filter_samples`. |
@@ -164,7 +165,6 @@ Pipeline complete.
 
 ## Roadmap (not yet implemented)
 
-- `merge_plink`: merge per-chromosome PLINK files for genome-wide PCA/KING
 - `sanity_check`: sex concordance across phenotype file, .fam, and chrX
 - `plot_kinship`: kinship histogram and IBS0 vs kinship scatter from `.kin0`
 - PRS (clump + threshold, internal and external summary stats)

@@ -12,6 +12,7 @@ from statgen_mcp.tools.plot_gwas import PlotGwasInput, run_plot_gwas
 from statgen_mcp.tools.plot_pca import PlotPcaInput, run_plot_pca
 from statgen_mcp.tools.plot_qq import PlotQqInput, compute_lambda_gc, run_plot_qq
 from statgen_mcp.tools.data_qc import DataQcInput, run_data_qc
+from statgen_mcp.tools.merge_plink import MergePlinkInput, run_merge_plink
 from statgen_mcp.utils.file_io import parse_plink2_log
 
 
@@ -776,3 +777,57 @@ def test_het_check_pgen_dry_run(tmp_path):
     assert result.status == "dry_run"
     assert "--pfile" in result.command_preview
     assert "--het" in result.command_preview
+
+
+# ---------------------------------------------------------------------------
+# merge_plink
+# ---------------------------------------------------------------------------
+
+def test_merge_plink_requires_two_prefixes():
+    with pytest.raises(Exception):
+        MergePlinkInput(input_prefixes=["/data/chr1"], output_prefix="out")
+
+
+def test_merge_plink_missing_file():
+    params = MergePlinkInput(
+        input_prefixes=["/nonexistent/chr1", "/nonexistent/chr2"],
+        output_prefix="out",
+    )
+    result = run_merge_plink(params)
+    assert result.status == "failed"
+
+
+def test_merge_plink_dry_run(tmp_path):
+    for chrom in ["chr1", "chr2", "chr3"]:
+        for ext in [".bed", ".bim", ".fam"]:
+            (tmp_path / f"{chrom}{ext}").touch()
+    prefixes = [str(tmp_path / f"chr{i}") for i in range(1, 4)]
+    params = MergePlinkInput(
+        input_prefixes=prefixes,
+        output_prefix="merged",
+        dry_run=True,
+    )
+    result = run_merge_plink(params)
+    assert result.status == "dry_run"
+    assert result.n_files_merged == 3
+    assert "--pmerge-list" in result.command_preview
+    assert "bfile" in result.command_preview
+    assert "--make-bed" in result.command_preview
+
+
+def test_merge_plink_pgen_dry_run(tmp_path):
+    for chrom in ["chr1", "chr2"]:
+        for ext in [".pgen", ".psam", ".pvar"]:
+            (tmp_path / f"{chrom}{ext}").touch()
+    prefixes = [str(tmp_path / f"chr{i}") for i in range(1, 3)]
+    params = MergePlinkInput(
+        input_prefixes=prefixes,
+        output_prefix="merged",
+        dry_run=True,
+    )
+    result = run_merge_plink(params)
+    assert result.status == "dry_run"
+    assert result.n_files_merged == 2
+    assert "--pmerge-list" in result.command_preview
+    assert "pfile" in result.command_preview
+    assert "--make-pgen" in result.command_preview
