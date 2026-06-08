@@ -36,6 +36,7 @@ class FilterSamplesInput(BaseModel):
             "or any FID/IID list (PCA outliers, user-specified, ancestry exclusions)."
         ),
     )
+    slurm_opts: dict = Field(default_factory=dict, description="Override SLURM parameters for this job (partition, mem, time, cpus, account)")
     dry_run: bool = Field(default=False)
 
     @model_validator(mode="after")
@@ -86,7 +87,7 @@ def run_filter_samples(params: FilterSamplesInput) -> FilterSamplesResult:
     cmd += [make_flag, "--out", str(out)]
 
     executor = get_executor(cfg.executor.backend)
-    job = executor.run(cmd=cmd, job_name="filter_samples", work_dir=run_dir, dry_run=params.dry_run)
+    job = executor.run(cmd=cmd, job_name="filter_samples", work_dir=run_dir, dry_run=params.dry_run, slurm_opts=params.slurm_opts)
 
     if params.dry_run:
         return FilterSamplesResult(status="dry_run", command_preview=job.stdout)

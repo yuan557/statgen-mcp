@@ -78,6 +78,7 @@ class DataQcInput(BaseModel):
         default="TYPED",
         description="INFO flag name for directly genotyped variants (e.g. TYPED for Minimac, GENOTYPED for IMPUTE4)",
     )
+    slurm_opts: dict = Field(default_factory=dict, description="Override SLURM parameters for this job (partition, mem, time, cpus, account)")
     dry_run: bool = Field(default=False, description="Preview command without running")
 
     @model_validator(mode="after")
@@ -195,7 +196,7 @@ def run_data_qc(params: DataQcInput) -> DataQcResult:
                 variant_source=params.variant_source,
             )
 
-        bcftools_job = executor.run(bcftools_cmd, "bcftools_filter", run_dir)
+        bcftools_job = executor.run(bcftools_cmd, "bcftools_filter", run_dir, slurm_opts=params.slurm_opts)
         if not bcftools_job.ok:
             return DataQcResult(status="failed", error_message=bcftools_job.error_message or bcftools_job.stderr)
 
@@ -227,7 +228,7 @@ def run_data_qc(params: DataQcInput) -> DataQcResult:
     cmd += [make_flag, "--out", str(out)]
 
     if params.dry_run:
-        job: JobResult = executor.run(cmd=cmd, job_name="data_qc", work_dir=run_dir, dry_run=True)
+        job: JobResult = executor.run(cmd=cmd, job_name="data_qc", work_dir=run_dir, dry_run=True, slurm_opts=params.slurm_opts)
         return DataQcResult(
             status="dry_run",
             command_preview=job.stdout,
@@ -241,7 +242,7 @@ def run_data_qc(params: DataQcInput) -> DataQcResult:
             variant_source=params.variant_source,
         )
 
-    job = executor.run(cmd=cmd, job_name="data_qc", work_dir=run_dir)
+    job = executor.run(cmd=cmd, job_name="data_qc", work_dir=run_dir, slurm_opts=params.slurm_opts)
 
     if not job.ok:
         return DataQcResult(status="failed", error_message=job.error_message or job.stderr)

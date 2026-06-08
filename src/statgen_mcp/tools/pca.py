@@ -36,6 +36,7 @@ class PcaInput(BaseModel):
             "GRCh38 region files are available from Price et al. 2008 / Anderson et al. 2010 or the plinkQC R package."
         ),
     )
+    slurm_opts: dict = Field(default_factory=dict, description="Override SLURM parameters for this job (partition, mem, time, cpus, account)")
     dry_run: bool = Field(default=False)
 
 
@@ -93,7 +94,7 @@ def run_pca(params: PcaInput) -> PcaResult:
             n_pcs=params.n_pcs,
         )
 
-    prune_job = executor.run(prune_cmd, "ld_prune", run_dir)
+    prune_job = executor.run(prune_cmd, "ld_prune", run_dir, slurm_opts=params.slurm_opts)
     if not prune_job.ok:
         return PcaResult(status="failed", error_message=prune_job.error_message or prune_job.stderr)
 
@@ -104,7 +105,7 @@ def run_pca(params: PcaInput) -> PcaResult:
         make_flag,
         "--out", pruned_prefix,
     ]
-    extract_job = executor.run(extract_cmd, "ld_extract", run_dir)
+    extract_job = executor.run(extract_cmd, "ld_extract", run_dir, slurm_opts=params.slurm_opts)
     if not extract_job.ok:
         return PcaResult(status="failed", error_message=extract_job.error_message or extract_job.stderr)
 
@@ -119,7 +120,7 @@ def run_pca(params: PcaInput) -> PcaResult:
         pca_cmd.append("approx")
     pca_cmd += ["--out", str(out)]
 
-    pca_job = executor.run(pca_cmd, "pca", run_dir)
+    pca_job = executor.run(pca_cmd, "pca", run_dir, slurm_opts=params.slurm_opts)
     if not pca_job.ok:
         return PcaResult(status="failed", error_message=pca_job.error_message or pca_job.stderr)
 

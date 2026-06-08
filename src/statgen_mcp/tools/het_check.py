@@ -33,6 +33,7 @@ class HetCheckInput(BaseModel):
         default=True,
         description="Write a FID/IID remove file of outliers, ready for filter_samples.",
     )
+    slurm_opts: dict = Field(default_factory=dict, description="Override SLURM parameters for this job (partition, mem, time, cpus, account)")
     dry_run: bool = Field(default=False)
 
 
@@ -111,7 +112,7 @@ def run_het_check(params: HetCheckInput) -> HetCheckResult:
     cmd = [plink2, plink_flag, params.input_prefix, "--het", "--out", str(out)]
 
     executor = get_executor(cfg.executor.backend)
-    job = executor.run(cmd=cmd, job_name="het_check", work_dir=run_dir, dry_run=params.dry_run)
+    job = executor.run(cmd=cmd, job_name="het_check", work_dir=run_dir, dry_run=params.dry_run, slurm_opts=params.slurm_opts)
 
     if params.dry_run:
         return HetCheckResult(status="dry_run", command_preview=job.stdout)

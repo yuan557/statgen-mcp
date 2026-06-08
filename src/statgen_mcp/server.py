@@ -93,7 +93,7 @@ async def list_tools() -> list[Tool]:
                 "Manhattan plot for GWAS summary statistics. "
                 "Draws genome-wide significance (5e-8) and suggestive (1e-5) lines. "
                 "Annotates plot with lambda GC. Returns n_significant variants. "
-                "Input is a concatenated PLINK2 .glm.linear or .glm.logistic.hybrid file."
+                "Input is a PLINK2 .glm.linear or .glm.logistic.hybrid summary stats file."
             ),
             inputSchema=PlotGwasInput.model_json_schema(),
         ),
@@ -102,7 +102,7 @@ async def list_tools() -> list[Tool]:
             description=(
                 "QQ plot for GWAS summary statistics. "
                 "Computes and annotates lambda GC (and lambda_1000 for binary traits). "
-                "Input is a concatenated PLINK2 .glm.linear or .glm.logistic.hybrid file."
+                "Input is a PLINK2 .glm.linear or .glm.logistic.hybrid summary stats file."
             ),
             inputSchema=PlotQqInput.model_json_schema(),
         ),
@@ -110,10 +110,11 @@ async def list_tools() -> list[Tool]:
             name="run_gwas",
             description=(
                 "Run genome-wide association study using PLINK2 --glm. "
+                "Runs on the full dataset in a single call — PLINK2 outputs one summary stats file per phenotype covering all chromosomes. "
                 "Merges user covariates and PCA eigenvec into a combined covariate file. "
                 "Auto-detects binary vs quantitative trait; use firth_fallback=True (default) for binary traits. "
-                "Run per chromosome on QC'd PLINK files; concatenate summary stats across chromosomes afterward. "
-                "Input should be prepared with data_qc. PCs from run_pca should use INFO >= 0.99 or genotyped variants."
+                "Input should be prepared with data_qc. PCs from run_pca should use INFO >= 0.99 or genotyped variants. "
+                "For GWAS association input, use a separate data_qc run with a lower INFO threshold (e.g. 0.3–0.8)."
             ),
             inputSchema=GwasInput.model_json_schema(),
         ),

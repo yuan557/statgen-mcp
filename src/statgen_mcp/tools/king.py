@@ -46,6 +46,7 @@ class KingInput(BaseModel):
             "Uses --make-king-table instead of --king-cutoff."
         ),
     )
+    slurm_opts: dict = Field(default_factory=dict, description="Override SLURM parameters for this job (partition, mem, time, cpus, account)")
     dry_run: bool = Field(default=False)
 
 
@@ -109,6 +110,7 @@ def run_king_cutoff(params: KingInput) -> KingResult:
         job_name=job_name,
         work_dir=run_dir,
         dry_run=params.dry_run,
+        slurm_opts=params.slurm_opts,
     )
 
     if params.dry_run:
