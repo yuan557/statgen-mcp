@@ -51,11 +51,18 @@ Run `run_gwas` on genotyped or imputed variants (with an appropriate INFO thresh
 
 ## Example output
 
-Pipeline run on 504 East Asian samples from the 1000 Genomes Project (simulated binary trait, 5 planted causal SNPs):
+Pipeline run on 504 East Asian samples from the 1000 Genomes Project using a simulated binary trait with 5 planted causal SNPs (effect size OR=3, MAF > 1%).
+
+Planted causal SNPs are real genotyped variants with a synthetic phenotype constructed so that exactly those 5 SNPs drive case-control status. Because the ground truth is known, you can check whether the GWAS recovers them — a stronger validation than checking λ_GC alone, since it tests whether the pipeline produces correct hits, not just well-calibrated p-values.
+
+Results:
+- Variants: 1.23M → 1.03M after QC (MAF 1%, missingness, HWE)
+- Samples: 504 → 495 after kinship filtering (7 related pairs)
+- PCA: clean EAS subpopulation separation (CDX/CHB/CHS/JPT/KHV)
+- GWAS: λ_GC = 1.038, 57 genome-wide hits, 4/5 causal SNPs recovered
+- The missed SNP (chr8) had MAF = 0.2% and was correctly removed by the MAF filter — expected behaviour
 
 ![Pipeline output panel](docs/images/pipeline_panel.png)
-
-Clean EAS subpopulation separation (CDX/CHB/CHS/JPT/KHV), genome-wide hits at planted causal loci, well-controlled inflation (λ_GC = 1.038).
 
 ## Requirements
 
