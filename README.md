@@ -47,7 +47,7 @@ Pass the remove files from step 2 to `filter_samples`:
 Run `run_pca` on the clean, filtered dataset. Review `plot_pca`. Choose n_pcs from the eigenvalue curve.
 
 **Step 5: GWAS**
-Run `run_gwas` on genotyped or imputed variants (with an appropriate INFO threshold). Pass PCs as covariates. Review `plot_gwas` and `plot_qq`; check lambda GC.
+Run a second `data_qc` on your genotyped or imputed variants using a lower INFO threshold appropriate for GWAS (e.g. `min_info_score=0.3`). The Step 1 dataset (INFO >= 0.99) is for PCA and kinship only — using it for GWAS discards most imputed variants. Then run `run_gwas` on this new dataset, passing PCs as covariates. Review `plot_gwas` and `plot_qq`; check lambda GC.
 
 ## Example output
 
@@ -60,7 +60,7 @@ Results:
 - Samples: 504 → 495 after kinship filtering (7 related pairs)
 - PCA: clean EAS subpopulation separation (CDX/CHB/CHS/JPT/KHV)
 - GWAS: λ_GC = 1.038, 57 genome-wide hits, 4/5 causal SNPs recovered
-- The missed SNP (chr8) had MAF = 0.2% and was correctly removed by the MAF filter — expected behaviour
+- The missed SNP (chr8) had MAF = 0.2% and was correctly removed by the MAF filter
 
 ![Pipeline output panel](docs/images/pipeline_panel.png)
 
