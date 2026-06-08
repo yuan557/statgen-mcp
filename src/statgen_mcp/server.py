@@ -19,7 +19,7 @@ from statgen_mcp.tools.plot_pca import PlotPcaInput, run_plot_pca
 from statgen_mcp.tools.plot_qq import PlotQqInput, run_plot_qq
 from statgen_mcp.tools.king import KingInput, run_king_cutoff
 from statgen_mcp.tools.pca import PcaInput, run_pca
-from statgen_mcp.tools.vcf_qc import VcfQcInput, run_vcf_qc
+from statgen_mcp.tools.data_qc import DataQcInput, run_data_qc
 
 app = Server("statgen-mcp")
 
@@ -28,9 +28,10 @@ app = Server("statgen-mcp")
 async def list_tools() -> list[Tool]:
     return [
         Tool(
-            name="vcf_qc",
+            name="data_qc",
             description=(
                 "Filter a VCF or PLINK dataset for quality control. "
+                "Accepts VCF/VCF.gz, PLINK1 (bed/bim/fam), or PLINK2 native (pgen/psam/pvar) input. "
                 "Applies MAF, per-sample missingness (MIND), per-variant missingness (GENO), "
                 "and Hardy-Weinberg equilibrium (HWE) filters using PLINK2. "
                 "For VCF input, optionally pre-filters variants by source: "
@@ -38,7 +39,7 @@ async def list_tools() -> list[Tool]:
                 "'imputed' (imputation INFO score >= threshold), or 'wgs' (no INFO filter). "
                 "Outputs a clean PLINK bed/bim/fam dataset."
             ),
-            inputSchema=VcfQcInput.model_json_schema(),
+            inputSchema=DataQcInput.model_json_schema(),
         ),
         Tool(
             name="king_cutoff",
@@ -48,7 +49,7 @@ async def list_tools() -> list[Tool]:
                 "With report_only=True, reports all related pairs above the cutoff without removing anyone. "
                 "Typical GWAS cutoff: 0.0442 (3rd-degree relatives). "
                 "Input must be a PLINK prefix. "
-                "For imputed input, prepare with vcf_qc using variant_source='imputed' and min_info_score >= 0.99, "
+                "For imputed input, prepare with data_qc using variant_source='imputed' and min_info_score >= 0.99, "
                 "or use variant_source='genotyped' to restrict to directly typed variants."
             ),
             inputSchema=KingInput.model_json_schema(),
@@ -61,7 +62,7 @@ async def list_tools() -> list[Tool]:
                 "Outputs .eigenvec and .eigenval files. "
                 "Use PCs as covariates in downstream GWAS. "
                 "Input should be genotyped variants or imputed variants with INFO >= 0.99 — "
-                "prepare with vcf_qc using variant_source='genotyped' or variant_source='imputed' min_info_score=0.99."
+                "prepare with data_qc using variant_source='genotyped' or variant_source='imputed' min_info_score=0.99."
             ),
             inputSchema=PcaInput.model_json_schema(),
         ),
@@ -100,7 +101,7 @@ async def list_tools() -> list[Tool]:
                 "Merges user covariates and PCA eigenvec into a combined covariate file. "
                 "Auto-detects binary vs quantitative trait; use firth_fallback=True (default) for binary traits. "
                 "Run per chromosome on QC'd PLINK files; concatenate summary stats across chromosomes afterward. "
-                "Input should be prepared with vcf_qc. PCs from run_pca should use INFO >= 0.99 or genotyped variants."
+                "Input should be prepared with data_qc. PCs from run_pca should use INFO >= 0.99 or genotyped variants."
             ),
             inputSchema=GwasInput.model_json_schema(),
         ),
@@ -121,7 +122,7 @@ async def list_tools() -> list[Tool]:
                 "Flags samples deviating more than sd_threshold SD from the mean F statistic. "
                 "Excess heterozygosity (F << mean) indicates sample contamination. "
                 "Deficient heterozygosity (F >> mean) indicates inbreeding or population structure. "
-                "Run on genotyped variants after vcf_qc, before king_cutoff. "
+                "Run on genotyped variants after data_qc, before king_cutoff. "
                 "Optionally writes a remove file ready for filter_samples."
             ),
             inputSchema=HetCheckInput.model_json_schema(),
@@ -129,7 +130,7 @@ async def list_tools() -> list[Tool]:
         Tool(
             name="check_tools",
             description=(
-                "Check which required external tools (plink2, flashpca) are installed "
+                "Check which required external tools (plink2, bcftools) are installed "
                 "and available on PATH. Returns version info where available."
             ),
             inputSchema={"type": "object", "properties": {}, "required": []},
@@ -140,9 +141,9 @@ async def list_tools() -> list[Tool]:
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     try:
-        if name == "vcf_qc":
-            params = VcfQcInput(**arguments)
-            result = run_vcf_qc(params)
+        if name == "data_qc":
+            params = DataQcInput(**arguments)
+            result = run_data_qc(params)
             return [TextContent(type="text", text=result.model_dump_json(indent=2))]
 
         elif name == "plot_pca":
@@ -199,7 +200,7 @@ def _check_tools() -> dict:
     import shutil
     import subprocess
 
-    tools = ["plink2", "bcftools", "flashpca"]
+    tools = ["plink2", "bcftools"]
     results = {}
 
     for tool in tools:

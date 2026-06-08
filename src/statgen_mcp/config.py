@@ -39,8 +39,8 @@ class AwsConfig:
 
 @dataclass
 class ToolsConfig:
-    plink2: str = "plink2"      # handles QC, KING cutoff, and PCA
-    flashpca: str = "flashpca"  # optional, faster PCA for very large cohorts
+    plink2: str = "plink2"
+    bcftools: str = "bcftools"
 
 
 @dataclass

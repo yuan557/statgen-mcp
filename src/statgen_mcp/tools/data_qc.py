@@ -1,6 +1,6 @@
 """
-VCF QC tool: MAF, MIND, GENO, HWE filtering via PLINK2.
-Also handles VCF -> PLINK conversion if needed.
+Data QC tool: MAF, MIND, GENO, HWE filtering via PLINK2.
+Accepts VCF, PLINK1 (bed/bim/fam), or PLINK2 native (pgen/psam/pvar) input.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from statgen_mcp.utils.validation import (
 )
 
 
-class VcfQcInput(BaseModel):
+class DataQcInput(BaseModel):
     input_prefix: str = Field(
         description="PLINK prefix (without .bed/.pgen extension) or path to VCF/VCF.gz"
     )
@@ -81,7 +81,7 @@ class VcfQcInput(BaseModel):
     dry_run: bool = Field(default=False, description="Preview command without running")
 
     @model_validator(mode="after")
-    def check_imputed_has_score(self) -> "VcfQcInput":
+    def check_imputed_has_score(self) -> "DataQcInput":
         if self.variant_source == "imputed" and self.min_info_score is None:
             raise ValueError("min_info_score is required when variant_source='imputed'")
         return self
@@ -102,7 +102,7 @@ class VcfQcInput(BaseModel):
 
 
 
-class VcfQcResult(BaseModel):
+class DataQcResult(BaseModel):
     status: str
     output_prefix: str = ""
     output_files: list[str] = []
@@ -118,7 +118,7 @@ class VcfQcResult(BaseModel):
     variant_source: str | None = None
 
 
-def _bcftools_filter_expr(params: VcfQcInput) -> str | None:
+def _bcftools_filter_expr(params: DataQcInput) -> str | None:
     if params.variant_source == "genotyped":
         return f"INFO/{params.typed_flag}=1"
     if params.variant_source == "imputed":
@@ -126,13 +126,13 @@ def _bcftools_filter_expr(params: VcfQcInput) -> str | None:
     return None
 
 
-def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
+def run_data_qc(params: DataQcInput) -> DataQcResult:
     cfg = get_config()
 
     try:
         plink2 = cfg.tools.plink2 if params.dry_run else require_binary(cfg.tools.plink2)
     except ValidationError as e:
-        return VcfQcResult(status="failed", error_message=str(e))
+        return DataQcResult(status="failed", error_message=str(e))
 
     try:
         fmt = detect_input_format(params.input_prefix)
@@ -141,9 +141,9 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
         else:
             require_file(params.input_prefix)
     except ValidationError as e:
-        return VcfQcResult(status="failed", error_message=str(e))
+        return DataQcResult(status="failed", error_message=str(e))
 
-    run_dir = make_run_dir(cfg.output_dir, "vcf_qc")
+    run_dir = make_run_dir(cfg.output_dir, "data_qc")
     out = run_dir / Path(params.output_prefix).name
     executor = get_executor(cfg.executor.backend)
 
@@ -159,7 +159,7 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
         try:
             bcftools = require_binary("bcftools")
         except ValidationError as e:
-            return VcfQcResult(status="failed", error_message=str(e))
+            return DataQcResult(status="failed", error_message=str(e))
 
         filtered_vcf = str(run_dir / "filtered.vcf.gz")
         bcftools_cmd = [bcftools, "view", "-i", filter_expr, "-Oz", "-o", filtered_vcf, params.input_prefix]
@@ -178,7 +178,7 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
                 + (" --snps-only just-acgt" if params.snps_only else "")
                 + f" --make-bed --out {out}"
             )
-            return VcfQcResult(
+            return DataQcResult(
                 status="dry_run",
                 command_preview=(
                     f"Step 1 (bcftools filter):\n{' '.join(bcftools_cmd)}\n\n"
@@ -197,7 +197,7 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
 
         bcftools_job = executor.run(bcftools_cmd, "bcftools_filter", run_dir)
         if not bcftools_job.ok:
-            return VcfQcResult(status="failed", error_message=bcftools_job.error_message or bcftools_job.stderr)
+            return DataQcResult(status="failed", error_message=bcftools_job.error_message or bcftools_job.stderr)
 
         vcf_input = filtered_vcf
 
@@ -227,8 +227,8 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
     cmd += [make_flag, "--out", str(out)]
 
     if params.dry_run:
-        job: JobResult = executor.run(cmd=cmd, job_name="vcf_qc", work_dir=run_dir, dry_run=True)
-        return VcfQcResult(
+        job: JobResult = executor.run(cmd=cmd, job_name="data_qc", work_dir=run_dir, dry_run=True)
+        return DataQcResult(
             status="dry_run",
             command_preview=job.stdout,
             filters_applied={
@@ -241,10 +241,10 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
             variant_source=params.variant_source,
         )
 
-    job = executor.run(cmd=cmd, job_name="vcf_qc", work_dir=run_dir)
+    job = executor.run(cmd=cmd, job_name="data_qc", work_dir=run_dir)
 
     if not job.ok:
-        return VcfQcResult(status="failed", error_message=job.error_message or job.stderr)
+        return DataQcResult(status="failed", error_message=job.error_message or job.stderr)
 
     log_path = Path(str(out) + ".log")
     log_summary = parse_plink2_log(log_path)
@@ -256,7 +256,7 @@ def run_vcf_qc(params: VcfQcInput) -> VcfQcResult:
             f"{log_summary['samples_removed_missing']} samples removed due to high missingness (--mind {params.mind})"
         )
 
-    return VcfQcResult(
+    return DataQcResult(
         status="success",
         output_prefix=str(out),
         output_files=output_files,

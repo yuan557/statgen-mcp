@@ -71,19 +71,19 @@ def pipeline(tmp_path_factory):
     from statgen_mcp.tools.king import KingInput, run_king_cutoff
     from statgen_mcp.tools.pca import PcaInput, run_pca
     from statgen_mcp.tools.plot_qq import PlotQqInput, run_plot_qq
-    from statgen_mcp.tools.vcf_qc import VcfQcInput, run_vcf_qc
+    from statgen_mcp.tools.data_qc import DataQcInput, run_data_qc
 
     out = {}
     plots = tmp_path_factory.mktemp("plots")
 
-    qc = run_vcf_qc(VcfQcInput(
+    qc = run_data_qc(DataQcInput(
         input_prefix=str(PLINK_PREFIX),
         output_prefix="1kg_eas_qc",
         maf=0.01, mind=0.05, geno=0.05, hwe=1e-6,
         biallelic_only=True,
     ))
-    assert qc.status == "success", f"vcf_qc failed: {qc.error_message}"
-    out["vcf_qc"] = qc
+    assert qc.status == "success", f"data_qc failed: {qc.error_message}"
+    out["data_qc"] = qc
 
     king = run_king_cutoff(KingInput(
         input_prefix=qc.output_prefix,
@@ -129,15 +129,15 @@ def pipeline(tmp_path_factory):
 # Validation tests
 # ---------------------------------------------------------------------------
 
-def test_vcf_qc_variant_counts(pipeline):
-    r = pipeline["vcf_qc"]
+def test_data_qc_variant_counts(pipeline):
+    r = pipeline["data_qc"]
     assert r.variants_before == pytest.approx(1_230_000, rel=0.05)
     assert r.variants_after > 900_000
     assert r.variants_after < r.variants_before
 
 
-def test_vcf_qc_sample_counts(pipeline):
-    r = pipeline["vcf_qc"]
+def test_data_qc_sample_counts(pipeline):
+    r = pipeline["data_qc"]
     assert r.samples_before == 504
     # some samples removed for missingness
     assert r.log_summary.get("samples_after", 504) <= 504

@@ -11,7 +11,7 @@ from statgen_mcp.tools.pca import PcaInput, run_pca
 from statgen_mcp.tools.plot_gwas import PlotGwasInput, run_plot_gwas
 from statgen_mcp.tools.plot_pca import PlotPcaInput, run_plot_pca
 from statgen_mcp.tools.plot_qq import PlotQqInput, compute_lambda_gc, run_plot_qq
-from statgen_mcp.tools.vcf_qc import VcfQcInput, run_vcf_qc
+from statgen_mcp.tools.data_qc import DataQcInput, run_data_qc
 from statgen_mcp.utils.file_io import parse_plink2_log
 
 
@@ -35,116 +35,116 @@ def test_parse_plink2_log_sample_counts(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# VcfQcInput validation
+# DataQcInput validation
 # ---------------------------------------------------------------------------
 
-def test_vcf_qc_invalid_maf():
+def test_data_qc_invalid_maf():
     with pytest.raises(Exception):
-        VcfQcInput(input_prefix="x", output_prefix="y", maf=0.9)
+        DataQcInput(input_prefix="x", output_prefix="y", maf=0.9)
 
 
-def test_vcf_qc_imputed_requires_score():
+def test_data_qc_imputed_requires_score():
     with pytest.raises(Exception):
-        VcfQcInput(input_prefix="x", output_prefix="y", variant_source="imputed")
+        DataQcInput(input_prefix="x", output_prefix="y", variant_source="imputed")
 
 
-def test_vcf_qc_imputed_with_score_valid():
-    params = VcfQcInput(
+def test_data_qc_imputed_with_score_valid():
+    params = DataQcInput(
         input_prefix="x", output_prefix="y",
         variant_source="imputed", min_info_score=0.99,
     )
     assert params.min_info_score == 0.99
 
 
-def test_vcf_qc_hwe_ctrl_only_dry_run(tmp_path):
+def test_data_qc_hwe_ctrl_only_dry_run(tmp_path):
     for ext in [".bed", ".bim", ".fam"]:
         (tmp_path / f"data{ext}").touch()
-    params = VcfQcInput(
+    params = DataQcInput(
         input_prefix=str(tmp_path / "data"),
         output_prefix="out",
         hwe_ctrl_only=True,
         dry_run=True,
     )
-    result = run_vcf_qc(params)
+    result = run_data_qc(params)
     assert result.status == "dry_run"
     assert "ctrl-only" in result.command_preview
 
 
-def test_vcf_qc_biallelic_snps_dry_run(tmp_path):
+def test_data_qc_biallelic_snps_dry_run(tmp_path):
     for ext in [".bed", ".bim", ".fam"]:
         (tmp_path / f"data{ext}").touch()
-    params = VcfQcInput(
+    params = DataQcInput(
         input_prefix=str(tmp_path / "data"),
         output_prefix="out",
         biallelic_only=True,
         snps_only=True,
         dry_run=True,
     )
-    result = run_vcf_qc(params)
+    result = run_data_qc(params)
     assert result.status == "dry_run"
     assert "--max-alleles" in result.command_preview
     assert "--snps-only" in result.command_preview
 
 
 # ---------------------------------------------------------------------------
-# vcf_qc runtime (dry_run)
+# data_qc runtime (dry_run)
 # ---------------------------------------------------------------------------
 
-def test_vcf_qc_missing_file():
-    params = VcfQcInput(input_prefix="/nonexistent/data", output_prefix="out")
-    result = run_vcf_qc(params)
+def test_data_qc_missing_file():
+    params = DataQcInput(input_prefix="/nonexistent/data", output_prefix="out")
+    result = run_data_qc(params)
     assert result.status == "failed"
 
 
-def test_vcf_qc_plink_dry_run(tmp_path):
+def test_data_qc_plink_dry_run(tmp_path):
     for ext in [".bed", ".bim", ".fam"]:
         (tmp_path / f"test{ext}").write_text("")
-    params = VcfQcInput(
+    params = DataQcInput(
         input_prefix=str(tmp_path / "test"),
         output_prefix="out_qc",
         maf=0.01, mind=0.05, geno=0.02, hwe=1e-6,
         dry_run=True,
     )
-    result = run_vcf_qc(params)
+    result = run_data_qc(params)
     assert result.status in ("dry_run", "failed")
 
 
-def test_vcf_qc_genotyped_dry_run(tmp_path):
+def test_data_qc_genotyped_dry_run(tmp_path):
     vcf = tmp_path / "test.vcf.gz"
     vcf.write_text("")
-    params = VcfQcInput(
+    params = DataQcInput(
         input_prefix=str(vcf),
         output_prefix="out_qc",
         variant_source="genotyped",
         dry_run=True,
     )
-    result = run_vcf_qc(params)
+    result = run_data_qc(params)
     assert result.status in ("dry_run", "failed")
     if result.status == "dry_run":
         assert "bcftools" in result.command_preview
         assert "TYPED" in result.command_preview
 
 
-def test_vcf_qc_genotyped_custom_flag_dry_run(tmp_path):
+def test_data_qc_genotyped_custom_flag_dry_run(tmp_path):
     vcf = tmp_path / "test.vcf.gz"
     vcf.write_text("")
-    params = VcfQcInput(
+    params = DataQcInput(
         input_prefix=str(vcf),
         output_prefix="out_qc",
         variant_source="genotyped",
         typed_flag="GENOTYPED",
         dry_run=True,
     )
-    result = run_vcf_qc(params)
+    result = run_data_qc(params)
     assert result.status in ("dry_run", "failed")
     if result.status == "dry_run":
         assert "GENOTYPED" in result.command_preview
 
 
-def test_vcf_qc_imputed_dry_run(tmp_path):
+def test_data_qc_imputed_dry_run(tmp_path):
     vcf = tmp_path / "test.vcf.gz"
     vcf.write_text("")
-    params = VcfQcInput(
+    params = DataQcInput(
         input_prefix=str(vcf),
         output_prefix="out_qc",
         variant_source="imputed",
@@ -152,37 +152,37 @@ def test_vcf_qc_imputed_dry_run(tmp_path):
         info_field="R2",
         dry_run=True,
     )
-    result = run_vcf_qc(params)
+    result = run_data_qc(params)
     assert result.status in ("dry_run", "failed")
     if result.status == "dry_run":
         assert "0.9" in result.command_preview
         assert "R2" in result.command_preview
 
 
-def test_vcf_qc_wgs_dry_run(tmp_path):
+def test_data_qc_wgs_dry_run(tmp_path):
     vcf = tmp_path / "test.vcf.gz"
     vcf.write_text("")
-    params = VcfQcInput(
+    params = DataQcInput(
         input_prefix=str(vcf),
         output_prefix="out_qc",
         variant_source="wgs",
         dry_run=True,
     )
-    result = run_vcf_qc(params)
+    result = run_data_qc(params)
     # wgs: no bcftools step, goes straight to plink2
     assert result.status in ("dry_run", "failed")
 
 
-def test_vcf_qc_plink_variant_source_warns(tmp_path):
+def test_data_qc_plink_variant_source_warns(tmp_path):
     for ext in [".bed", ".bim", ".fam"]:
         (tmp_path / f"test{ext}").write_text("")
-    params = VcfQcInput(
+    params = DataQcInput(
         input_prefix=str(tmp_path / "test"),
         output_prefix="out_qc",
         variant_source="genotyped",
         dry_run=True,
     )
-    result = run_vcf_qc(params)
+    result = run_data_qc(params)
     assert result.status in ("dry_run", "failed")
     if result.status == "dry_run":
         assert any("skipped" in w for w in result.warnings)
@@ -675,14 +675,14 @@ def _make_pgen(tmp_path, name="data"):
         (tmp_path / f"{name}{ext}").touch()
 
 
-def test_vcf_qc_pgen_dry_run(tmp_path):
+def test_data_qc_pgen_dry_run(tmp_path):
     _make_pgen(tmp_path)
-    params = VcfQcInput(
+    params = DataQcInput(
         input_prefix=str(tmp_path / "data"),
         output_prefix="out",
         dry_run=True,
     )
-    result = run_vcf_qc(params)
+    result = run_data_qc(params)
     assert result.status == "dry_run"
     assert "--pfile" in result.command_preview
     assert "--make-pgen" in result.command_preview

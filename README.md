@@ -7,13 +7,13 @@
 An MCP server that wraps **PLINK2** and **bcftools** and lets any agentic AI (e.g. Claude, Gemini, Codex) act as an adaptive orchestrator for statistical genetics pipelines. Instead of writing a Snakefile, you tell the agent what you want, and it calls the tools, reads intermediate outputs, and adjusts parameters along the way.
 
 **Example:** "QC the imputed VCF, remove related samples, run PCA, then run GWAS on BMI adjusting for age, sex, and PCs."
-The agent will chain `vcf_qc`, `king_cutoff`, `filter_samples`, `run_pca`, and `run_gwas`, pick `n_pcs` from the eigenvalue curve, and flag anything unexpected in the QC logs.
+The agent will chain `data_qc`, `king_cutoff`, `filter_samples`, `run_pca`, and `run_gwas`, pick `n_pcs` from the eigenvalue curve, and flag anything unexpected in the QC logs.
 
 ## Implemented tools
 
 | Tool | What it does |
 |------|-------------|
-| `vcf_qc` | MAF, MIND, GENO, HWE filtering via PLINK2. Pre-filters VCF by variant source (genotyped / imputed INFO score / WGS) via bcftools. |
+| `data_qc` | MAF, MIND, GENO, HWE filtering via PLINK2. Accepts VCF, PLINK1, or PLINK2 native input. Pre-filters VCF by variant source (genotyped / imputed INFO score / WGS) via bcftools. |
 | `king_cutoff` | Relatedness analysis via PLINK2 KING. Report-only mode or filter mode (removes one sample per related pair, writes `.king.cutoff.out.id` for `filter_samples`). |
 | `het_check` | Heterozygosity QC via PLINK2 `--het`. Flags outliers that indicate contamination by F statistic SD cutoff (default ±3 SD). Writes a remove file for `filter_samples`. |
 | `filter_samples` | Keep or remove samples by FID/IID list: ancestry subsets, PCA outliers, kinship exclusions, het outliers. |
@@ -24,12 +24,12 @@ The agent will chain `vcf_qc`, `king_cutoff`, `filter_samples`, `run_pca`, and `
 | `plot_qq` | QQ plot with lambda GC annotation. |
 | `check_tools` | Verify required binaries (plink2, bcftools) are installed and show versions. |
 
-All tools accept both **PLINK1** (`.bed/.bim/.fam`) and **PLINK2 native** (`.pgen/.psam/.pvar`) format. Format is auto-detected from the input prefix; output format matches input format. `vcf_qc` additionally accepts VCF/VCF.gz input, which always outputs PLINK1 bed format.
+All tools accept both **PLINK1** (`.bed/.bim/.fam`) and **PLINK2 native** (`.pgen/.psam/.pvar`) format. Format is auto-detected from the input prefix; output format matches input format. `data_qc` additionally accepts VCF/VCF.gz input, which always outputs PLINK1 bed format.
 
 ## Intended pipeline order
 
 **Step 1: Variant QC**
-Run `vcf_qc` on genotyped or high-confidence imputed variants (INFO >= 0.99). Outputs a clean PLINK dataset.
+Run `data_qc` on genotyped or high-confidence imputed variants (INFO >= 0.99). Outputs a clean PLINK dataset.
 
 **Step 2: Sample QC** (run all, collect remove files)
 - `het_check`: flag outliers that indicate contamination
