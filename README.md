@@ -136,6 +136,32 @@ Works with any MCP-compatible agent. Examples:
 
 Other agents (Gemini CLI, Codex CLI, etc.) - consult their MCP client documentation for the equivalent config.
 
+## Usage example
+
+With `.mcp.json` in place, start Claude Code in your project directory and describe what you want in plain English:
+
+```
+$ claude
+
+> I have an imputed VCF at /data/cohort.vcf.gz and a phenotype file at /data/pheno.txt
+  (columns: FID IID BMI AGE SEX). QC the imputed variants (INFO >= 0.3), remove
+  related samples and het outliers, run PCA, then run GWAS on BMI adjusting for
+  age, sex, and PCs.
+```
+
+Claude Code calls the tools in sequence — `data_qc`, `het_check`, `king_cutoff`, `filter_samples`, `run_pca`, `run_gwas`, `plot_gwas`, `plot_qq` — reading intermediate outputs at each step. It picks the number of PCs from the eigenvalue curve, checks λ_GC after GWAS, and flags anything unexpected in the QC logs. You supervise; it executes.
+
+Example summary at the end:
+
+```
+Pipeline complete.
+- Variants: 8.2M → 6.1M after QC (INFO >= 0.3, MAF 1%, geno 5%, HWE 1e-6)
+- Samples: 4,892 → 4,801 (45 het outliers, 46 related removed)
+- PCA: 10 PCs explain 87% of variance
+- GWAS: λ_GC = 1.02, 3 genome-wide significant loci
+  Plots: /data/results/.../manhattan.png, qq.png
+```
+
 ## Roadmap (not yet implemented)
 
 - `merge_plink`: merge per-chromosome PLINK files for genome-wide PCA/KING
