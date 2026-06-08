@@ -10,7 +10,7 @@ from pathlib import Path
 def make_run_dir(base: str, job_name: str) -> Path:
     """Create a timestamped run directory and return it."""
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_dir = Path(base) / f"{job_name}_{ts}"
+    run_dir = Path(base).expanduser() / f"{job_name}_{ts}"
     run_dir.mkdir(parents=True, exist_ok=True)
     return run_dir
 

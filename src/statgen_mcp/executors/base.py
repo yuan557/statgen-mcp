@@ -159,11 +159,12 @@ class SlurmExecutor(BaseExecutor):
         script_file.write_text("\n".join(script_lines))
 
         if dry_run:
+            script_text = "\n".join(script_lines)
             return JobResult(
                 status="dry_run",
                 stdout=(
                     f"[DRY RUN] Would submit:\n{script_file}\n\n"
-                    f"--- script ---\n{''.join(script_lines)}\n\n"
+                    f"--- script ---\n{script_text}\n\n"
                     f"--- command ---\n{self.preview(cmd)}"
                 ),
             )
