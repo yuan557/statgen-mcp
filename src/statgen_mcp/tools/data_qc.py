@@ -157,13 +157,8 @@ def run_data_qc(params: DataQcInput) -> DataQcResult:
     vcf_input = params.input_prefix
 
     if filter_expr:
-        try:
-            bcftools = require_binary("bcftools")
-        except ValidationError as e:
-            return DataQcResult(status="failed", error_message=str(e))
-
         filtered_vcf = str(run_dir / "filtered.vcf.gz")
-        bcftools_cmd = [bcftools, "view", "-i", filter_expr, "-Oz", "-o", filtered_vcf, params.input_prefix]
+        bcftools_cmd = [cfg.tools.bcftools, "view", "-i", filter_expr, "-Oz", "-o", filtered_vcf, params.input_prefix]
 
         if params.dry_run:
             hwe_modifiers = []
@@ -195,6 +190,11 @@ def run_data_qc(params: DataQcInput) -> DataQcResult:
                 },
                 variant_source=params.variant_source,
             )
+
+        try:
+            bcftools_cmd[0] = require_binary(cfg.tools.bcftools)
+        except ValidationError as e:
+            return DataQcResult(status="failed", error_message=str(e))
 
         bcftools_job = executor.run(bcftools_cmd, "bcftools_filter", run_dir, slurm_opts=params.slurm_opts)
         if not bcftools_job.ok:

@@ -121,10 +121,9 @@ def test_data_qc_genotyped_dry_run(tmp_path):
         dry_run=True,
     )
     result = run_data_qc(params)
-    assert result.status in ("dry_run", "failed")
-    if result.status == "dry_run":
-        assert "bcftools" in result.command_preview
-        assert "TYPED" in result.command_preview
+    assert result.status == "dry_run"
+    assert "bcftools" in result.command_preview
+    assert "TYPED" in result.command_preview
 
 
 def test_data_qc_genotyped_custom_flag_dry_run(tmp_path):
@@ -138,9 +137,8 @@ def test_data_qc_genotyped_custom_flag_dry_run(tmp_path):
         dry_run=True,
     )
     result = run_data_qc(params)
-    assert result.status in ("dry_run", "failed")
-    if result.status == "dry_run":
-        assert "GENOTYPED" in result.command_preview
+    assert result.status == "dry_run"
+    assert "GENOTYPED" in result.command_preview
 
 
 def test_data_qc_imputed_dry_run(tmp_path):
@@ -155,10 +153,9 @@ def test_data_qc_imputed_dry_run(tmp_path):
         dry_run=True,
     )
     result = run_data_qc(params)
-    assert result.status in ("dry_run", "failed")
-    if result.status == "dry_run":
-        assert "0.9" in result.command_preview
-        assert "R2" in result.command_preview
+    assert result.status == "dry_run"
+    assert "0.9" in result.command_preview
+    assert "R2" in result.command_preview
 
 
 def test_data_qc_wgs_dry_run(tmp_path):
