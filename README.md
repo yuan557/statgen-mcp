@@ -96,7 +96,7 @@ On EC2 (Amazon Linux 2023 AMI):
 ```bash
 python -m venv llama_env && source llama_env/bin/activate
 pip install -r deploy/requirements-cpu.txt
-bash deploy/start_llama_cpp.sh   # downloads Qwen3-4B GGUF on first run (~2.5GB)
+bash deploy/start_llama_cpp.sh   # downloads Qwen3-1.7B GGUF on first run (~1GB)
 ```
 
 Add to `~/.statgen-mcp/config.toml`:
