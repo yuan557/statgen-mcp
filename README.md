@@ -48,12 +48,9 @@ If you can't send data-adjacent prompts to a hosted model for compliance reasons
 
 ## Roadmap
 
-- `run_gwas_regenie` - whole genome regression for large or imbalanced cohorts
-- `sanity_check` - sex concordance across phenotype, `.fam`, and chrX
-- `plot_kinship` - kinship histogram and IBS0 vs kinship scatter
-- PRS, fine-mapping, heritability (LDSC / GCTA)
-- Self-hosted open-source LLM backend - GPU (vLLM) in progress; CPU (llama.cpp) shelved, needs >8 GB RAM and a model larger than Qwen3-1.7B. See [docs/guide.md](docs/guide.md#self-hosted-llm-backend-experimental).
-- AWS Batch executor
+Self-hosted open-source LLM backend so you can drive the pipeline without a hosted model - data stays local, only LLM calls go to your own instance. GPU inference via vLLM on an AWS `g4dn.xlarge` (T4, 16 GB VRAM) is under active development; stay tuned. CPU inference (llama.cpp) was tested and shelved - it needs >8 GB RAM and a model larger than Qwen3-1.7B. See [docs/guide.md](docs/guide.md#self-hosted-llm-backend-experimental).
+
+Also planned: AWS Batch executor.
 
 ## Acknowledgements
 
