@@ -23,7 +23,8 @@ fi
 echo "Starting llama.cpp server on port 8000 (threads: $N_THREADS)"
 python -m llama_cpp.server \
     --model "$MODEL_FILE" \
-    --n_ctx 8192 \
+    --n_ctx 4096 \
     --n_threads "$N_THREADS" \
     --host 0.0.0.0 \
-    --port 8000
+    --port 8000 \
+    --chat_format chatml-function-calling

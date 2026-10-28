@@ -45,15 +45,15 @@ async def run(task: str, dry_run: bool = False) -> None:
         print("See config.example.toml for the [llm] section.")
         sys.exit(1)
 
-    llm = AsyncOpenAI(base_url=cfg.llm.base_url, api_key=cfg.llm.api_key)
+    llm = AsyncOpenAI(base_url=cfg.llm.base_url, api_key=cfg.llm.api_key, timeout=300.0)
     model = cfg.llm.model
 
     if dry_run:
         task = task + " (use dry_run=true for all tool calls)"
 
     server_params = StdioServerParameters(
-        command=sys.executable,
-        args=["-m", "statgen_mcp"],
+        command="statgen-mcp",
+        args=[],
     )
 
     async with stdio_client(server_params) as (read, write):
@@ -74,12 +74,14 @@ async def run(task: str, dry_run: bool = False) -> None:
             ]
 
             step = 0
-            while True:
+            max_steps = 20
+            while step < max_steps:
                 response = await llm.chat.completions.create(
                     model=model,
                     messages=messages,
                     tools=openai_tools,
                     tool_choice="auto",
+                    max_tokens=512,
                 )
 
                 msg = response.choices[0].message
@@ -100,11 +102,17 @@ async def run(task: str, dry_run: bool = False) -> None:
                     ]
                 messages.append(assistant_entry)
 
+                if msg.content:
+                    print(f"\n[model]: {msg.content[:300]}")
+
                 # No tool calls — model is done
                 if not msg.tool_calls:
                     print("\n--- Done ---")
                     print(msg.content)
                     break
+
+            else:
+                print(f"\n--- Stopped: reached {max_steps} steps ---")
 
                 # Execute tool calls
                 step += 1
@@ -131,11 +139,26 @@ async def run(task: str, dry_run: bool = False) -> None:
                         preview += f"\n  ... ({len(result_text)} chars total)"
                     print(f"  result: {preview}")
 
+                    # Truncate long results before storing to keep context bounded
+                    stored_text = result_text[:800] if len(result_text) > 800 else result_text
                     messages.append({
                         "role": "tool",
                         "tool_call_id": tc.id,
-                        "content": result_text,
+                        "content": stored_text,
                     })
+
+
+def _strip_schema_descriptions(schema: dict) -> dict:
+    """Remove description fields from JSON schema to reduce token count."""
+    if not isinstance(schema, dict):
+        return schema
+    result = {k: v for k, v in schema.items() if k != "description"}
+    if "properties" in result:
+        result["properties"] = {
+            k: _strip_schema_descriptions(v)
+            for k, v in result["properties"].items()
+        }
+    return result
 
 
 def _to_openai_tool(tool) -> dict:
@@ -143,8 +166,8 @@ def _to_openai_tool(tool) -> dict:
         "type": "function",
         "function": {
             "name": tool.name,
-            "description": tool.description or "",
-            "parameters": tool.inputSchema,
+            "description": (tool.description or "")[:120],
+            "parameters": _strip_schema_descriptions(tool.inputSchema),
         },
     }
 

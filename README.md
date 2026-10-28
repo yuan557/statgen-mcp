@@ -90,9 +90,9 @@ python deploy/run_pipeline.py "QC /data/cohort variant_source=genotyped, then ru
 
 ### AWS EC2 (CPU - no GPU required)
 
-Run Qwen3-4B on a `c7i.2xlarge` (8 vCPU, 16GB RAM, ~$0.34/hr) using llama.cpp. Expect ~5-10 tok/s - slow for chat, fine for driving a pipeline where tool calls take minutes.
+Run Qwen3 on a CPU instance using llama.cpp. Requires at least 16 GB RAM - 8 GB is not sufficient (llama.cpp pre-allocates ~7.5 GB for the model and KV cache, leaving no headroom). Qwen3-1.7B is too small for reliable multi-step tool-calling; use Qwen3-4B or larger.
 
-On EC2 (Amazon Linux 2023 AMI):
+On EC2 (Amazon Linux 2023 AMI, 16 GB+ instance):
 ```bash
 python -m venv llama_env && source llama_env/bin/activate
 pip install -r deploy/requirements-cpu.txt
@@ -103,11 +103,15 @@ Add to `~/.statgen-mcp/config.toml`:
 ```toml
 [llm]
 base_url = "http://<ec2-ip>:8000/v1"
-model    = "Qwen/Qwen3-4B-GGUF"
+model    = "Qwen3-1.7B-Q4_K_M.gguf"
 api_key  = "none"
 ```
 
 Then run `deploy/run_pipeline.py` as above - the API is identical to the GPU setup.
+
+### AWS EC2 (GPU - in progress)
+
+GPU hosting via vLLM on a `g4dn.xlarge` (T4, 16 GB VRAM) is the recommended path for open-source model inference. Requirements from testing: at least 8 GB RAM for the instance, Qwen3-1.7B is not capable enough for reliable pipeline orchestration - Qwen3-4B or larger recommended. Scripts are in `deploy/start_vllm.sh`. GPU instance quota must be requested via AWS Service Quotas before launching.
 
 ### Local GPU
 
