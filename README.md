@@ -4,7 +4,7 @@
 [![Integration Tests](https://github.com/yuan557/statgen-mcp/actions/workflows/integration.yml/badge.svg)](https://github.com/yuan557/statgen-mcp/actions/workflows/integration.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-An MCP server that exposes PLINK2 and bcftools as tools so an AI agent can orchestrate GWAS pipelines in plain English — no Snakefile required.
+An MCP server that exposes PLINK2 and bcftools as tools so an AI agent can orchestrate GWAS pipelines in plain English - no Snakefile required.
 
 ```
 > QC the imputed VCF, remove related samples, run PCA, then run GWAS on BMI adjusting for age, sex, and PCs.
@@ -65,7 +65,7 @@ Run `claude` in your project directory and describe the analysis in plain Englis
 
 ### AWS EC2 (self-hosted Qwen via vLLM)
 
-Run Qwen3-4B-AWQ on a `g4dn.xlarge` spot instance (~$0.16/hr). Data stays local — only LLM calls go to EC2.
+Run Qwen3-4B-AWQ on a `g4dn.xlarge` spot instance (~$0.16/hr). Data stays local - only LLM calls go to EC2.
 
 On EC2 (Deep Learning AMI):
 ```bash
@@ -88,9 +88,30 @@ pip install -e ".[llm]"
 python deploy/run_pipeline.py "QC /data/cohort variant_source=genotyped, then run PCA"
 ```
 
+### AWS EC2 (CPU - no GPU required)
+
+Run Qwen3-4B on a `c7i.2xlarge` (8 vCPU, 16GB RAM, ~$0.34/hr) using llama.cpp. Expect ~5-10 tok/s - slow for chat, fine for driving a pipeline where tool calls take minutes.
+
+On EC2 (Amazon Linux 2023 AMI):
+```bash
+python -m venv llama_env && source llama_env/bin/activate
+pip install -r deploy/requirements-cpu.txt
+bash deploy/start_llama_cpp.sh   # downloads Qwen3-4B GGUF on first run (~2.5GB)
+```
+
+Add to `~/.statgen-mcp/config.toml`:
+```toml
+[llm]
+base_url = "http://<ec2-ip>:8000/v1"
+model    = "Qwen/Qwen3-4B-GGUF"
+api_key  = "none"
+```
+
+Then run `deploy/run_pipeline.py` as above - the API is identical to the GPU setup.
+
 ### Local GPU
 
-Same as EC2 — run `deploy/start_vllm.sh` on any Linux machine with an NVIDIA GPU (≥ 6GB VRAM), point `base_url` at `http://localhost:8000/v1`.
+Same as the GPU EC2 option - run `deploy/start_vllm.sh` on any Linux machine with an NVIDIA GPU (≥ 6GB VRAM), point `base_url` at `http://localhost:8000/v1`.
 
 ## Configuration
 
