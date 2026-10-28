@@ -4,191 +4,58 @@
 [![Integration Tests](https://github.com/yuan557/statgen-mcp/actions/workflows/integration.yml/badge.svg)](https://github.com/yuan557/statgen-mcp/actions/workflows/integration.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-An MCP server that wraps **PLINK2** and **bcftools** and lets any agentic AI (e.g. Claude, Gemini, Codex) act as an adaptive orchestrator for statistical genetics pipelines. Instead of writing a Snakefile, you tell the agent what you want, and it calls the tools, reads intermediate outputs, and adjusts parameters along the way.
+Run a GWAS pipeline by describing it in plain English. statgen-mcp exposes PLINK2 and bcftools to an AI agent, so instead of writing a Snakefile you just say what you want:
 
-**Example:** "QC the imputed VCF, remove related samples, run PCA, then run GWAS on BMI adjusting for age, sex, and PCs."
-The agent will chain `data_qc`, `king_cutoff`, `filter_samples`, `run_pca`, and `run_gwas`, pick `n_pcs` from the eigenvalue curve, and flag anything unexpected in the QC logs.
+```
+> QC the imputed VCF, remove related samples, run PCA, then run GWAS on BMI adjusting for age, sex, and PCs.
+```
 
-## Implemented tools
-
-| Tool | What it does |
-|------|-------------|
-| `merge_plink` | Merge per-chromosome PLINK datasets into one genome-wide file via PLINK2 `--pmerge-list`. Accepts PLINK1 or PLINK2 native input. |
-| `data_qc` | MAF, MIND, GENO, HWE filtering via PLINK2. Accepts VCF, PLINK1, or PLINK2 native input. Pre-filters VCF by variant source (genotyped / imputed INFO score / WGS) via bcftools. |
-| `king_cutoff` | Relatedness analysis via PLINK2 KING. Report-only mode or filter mode (removes one sample per related pair, writes `.king.cutoff.out.id` for `filter_samples`). |
-| `het_check` | Heterozygosity QC via PLINK2 `--het`. Flags outliers that indicate contamination by F statistic SD cutoff (default ±3 SD). Writes a remove file for `filter_samples`. |
-| `filter_samples` | Keep or remove samples by FID/IID list: ancestry subsets, PCA outliers, kinship exclusions, het outliers. |
-| `run_pca` | LD-prune then PCA via PLINK2. Optionally excludes high-LD regions (MHC, inversions). Outputs `.eigenvec` / `.eigenval`. |
-| `run_gwas` | PLINK2 `--glm` on the full dataset. Merges user covariates + PCA eigenvec internally. Firth fallback for binary traits. |
-| `plot_pca` | PCA scatter plots coloured by population label. |
-| `plot_gwas` | Manhattan plot with genome-wide / suggestive significance lines and lambda GC. |
-| `plot_qq` | QQ plot with lambda GC annotation. |
-| `check_tools` | Verify required binaries (plink2, bcftools) are installed and show versions. |
-
-All tools accept both **PLINK1** (`.bed/.bim/.fam`) and **PLINK2 native** (`.pgen/.psam/.pvar`) format. Format is auto-detected from the input prefix; output format matches input format. `data_qc` additionally accepts VCF/VCF.gz input, which always outputs PLINK1 bed format.
-
-## Intended pipeline order
-
-**Step 1: Variant QC**
-Run `data_qc` on genotyped or high-confidence imputed variants (INFO >= 0.99). Outputs a clean PLINK dataset.
-
-**Step 2: Sample QC** (run all, collect remove files)
-- `het_check`: flag outliers that indicate contamination
-- `king_cutoff`: identify cryptic relatives
-- *(optional)* manual ancestry filtering using population labels
-
-**Step 3: Apply exclusions**
-Pass the remove files from step 2 to `filter_samples`:
-- `.king.cutoff.out.id` from `king_cutoff` to remove related individuals
-- `het_outliers_remove.txt` from `het_check` to remove het outliers
-- *(optional)* ancestry subset file
-
-**Step 4: PCA**
-Run `run_pca` on the clean, filtered dataset. Review `plot_pca`. Choose n_pcs from the eigenvalue curve.
-
-**Step 5: GWAS**
-The Step 1 dataset is for PCA and kinship only. Run a second `data_qc` to produce the GWAS input — the right settings depend on your data type:
-
-- **Imputed:** use a lower INFO threshold (e.g. `min_info_score=0.3`, `variant_source="imputed"`). The 0.99 dataset discards most imputed variants.
-- **WGS:** `variant_source="wgs"` — no INFO filtering. Adjust MAF and other filters as appropriate for your GWAS.
-- **Genotyped array:** the Step 1 dataset is usually fine as-is; no second run needed.
-
-Then run `run_gwas` on this dataset, passing PCs as covariates. Review `plot_gwas` and `plot_qq`; check lambda GC.
-
-## Example output
-
-Pipeline run on 504 East Asian samples from the 1000 Genomes Project using a simulated binary trait with 5 planted causal SNPs (effect size OR=3, MAF > 1%).
-
-Planted causal SNPs are real genotyped variants with a synthetic phenotype constructed so that exactly those 5 SNPs drive case-control status. Because the ground truth is known, you can check whether the GWAS recovers them — a stronger validation than checking λ_GC alone, since it tests whether the pipeline produces correct hits, not just well-calibrated p-values.
-
-Results:
-- Variants: 1.23M → 1.03M after QC (MAF 1%, missingness, HWE)
-- Samples: 504 → 495 after kinship filtering (7 related pairs)
-- PCA: clean EAS subpopulation separation (CDX/CHB/CHS/JPT/KHV)
-- GWAS: λ_GC = 1.038, 57 genome-wide hits, 4/5 causal SNPs recovered
-- The missed SNP (chr8) had MAF = 0.2% and was correctly removed by the MAF filter
+The agent chains `data_qc → king_cutoff → filter_samples → run_pca → run_gwas`, reads the intermediate outputs, picks the number of PCs from the eigenvalue curve, and flags anything odd in the QC logs. You supervise; it does the button-pushing.
 
 ![Pipeline output panel](docs/images/pipeline_panel.png)
 
-## Requirements
+*504 East Asian samples (1000 Genomes), 1.23M variants, simulated binary trait with 5 planted causal SNPs. λ_GC = 1.038, 4/5 causal SNPs recovered - the 5th had MAF 0.2% and was filtered as intended.*
 
-- Python >= 3.11
-- [PLINK2](https://www.cog-genomics.org/plink/2.0/) on your PATH
-- [bcftools](https://samtools.github.io/bcftools/) on your PATH (required for variant source filtering)
+## Why
 
-## Installation
+GWAS QC is a long chain of PLINK commands where the right parameter at each step depends on what the last step produced. That is exactly the kind of judgement an agent can handle if you give it the tools and let it read the logs. statgen-mcp is those tools: ten thin, well-described wrappers around PLINK2 and bcftools, plus plotting. The intelligence stays in the agent; the tools just execute and report structured results back.
 
-### Local / workstation (conda recommended)
+It covers the full path from raw genotypes or imputed VCF to a Manhattan plot: merging, variant and sample QC, relatedness and heterozygosity filtering, ancestry subsetting, PCA, association testing with Firth fallback, and QC plots. Works with PLINK1, PLINK2, and VCF input, locally or on a SLURM cluster.
 
-conda can install the Python package and all binary dependencies together via [bioconda](https://bioconda.github.io/):
+## Quick start
 
 ```bash
 conda create -n statgen-mcp -c bioconda -c conda-forge plink2 bcftools python>=3.11
 conda activate statgen-mcp
-git clone https://github.com/yuan557/statgen-mcp
-cd statgen-mcp
 pip install -e ".[plots]"
 ```
 
-### HPC clusters (e.g. Compute Canada / Alliance)
+Point your agent at it with a `.mcp.json` in your project root:
 
-Many HPC clusters discourage conda due to Lustre filesystem overhead. Use the cluster module system for binaries and a Python virtualenv for the package:
-
-```bash
-module load plink2 bcftools   # exact module names vary by cluster
-git clone https://github.com/yuan557/statgen-mcp
-cd statgen-mcp
-python -m venv ~/.venv/statgen-mcp
-source ~/.venv/statgen-mcp/bin/activate
-pip install -e ".[plots]"
-```
-
-Add the `module load` and `source` lines to your `~/.bashrc` (or job script) so the environment is active when the MCP server starts.
-
-## Configuration
-
-```bash
-mkdir -p ~/.statgen-mcp
-cp config.example.toml ~/.statgen-mcp/config.toml
-```
-
-The key settings to review:
-
-```toml
-# Where outputs are written (one timestamped subdirectory per tool call)
-output_dir = "~/statgen-mcp-runs"
-
-[executor]
-backend = "local"   # or "slurm" on HPC
-
-[tools]
-plink2 = "plink2"       # full path if not on PATH, e.g. "/usr/local/bin/plink2"
-bcftools = "bcftools"   # required for VCF variant source filtering
-```
-
-SLURM options (partition, account, memory, time) are in `config.example.toml`.
-
-## Agent setup
-
-Works with any MCP-compatible agent. Examples:
-
-**Claude Code (CLI)** - add to `.mcp.json` in your project root:
 ```json
 {
   "mcpServers": {
-    "statgen-mcp": {
-      "command": "statgen-mcp"
-    }
+    "statgen-mcp": { "command": "statgen-mcp" }
   }
 }
 ```
 
-**Claude Desktop** - add the same block to the config file for your OS:
-- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
-- Linux: `~/.config/Claude/claude_desktop_config.json`
+Then run `claude` (or any MCP-compatible agent) and describe the analysis.
 
-Other agents (Gemini CLI, Codex CLI, etc.) - consult their MCP client documentation for the equivalent config.
+**Full setup, tool reference, pipeline guide, and HPC/SLURM instructions: [docs/guide.md](docs/guide.md).**
 
-## Usage example
+## Roadmap
 
-With `.mcp.json` in place, start Claude Code in your project directory and describe what you want in plain English:
-
-```
-$ claude
-
-> I have an imputed VCF at /data/cohort.vcf.gz and a phenotype file at /data/pheno.txt
-  (columns: FID IID BMI AGE SEX). QC the imputed variants (INFO >= 0.3), remove
-  related samples and het outliers, run PCA, then run GWAS on BMI adjusting for
-  age, sex, and PCs.
-```
-
-Claude Code calls the tools in sequence — `data_qc`, `het_check`, `king_cutoff`, `filter_samples`, `run_pca`, `run_gwas`, `plot_gwas`, `plot_qq` — reading intermediate outputs at each step. It picks the number of PCs from the eigenvalue curve, checks λ_GC after GWAS, and flags anything unexpected in the QC logs. You supervise; it executes.
-
-Example summary at the end:
-
-```
-Pipeline complete.
-- Variants: 8.2M → 6.1M after QC (INFO >= 0.3, MAF 1%, geno 5%, HWE 1e-6)
-- Samples: 4,892 → 4,801 (45 het outliers, 46 related removed)
-- PCA: 10 PCs explain 87% of variance
-- GWAS: λ_GC = 1.02, 3 genome-wide significant loci
-  Plots: /data/results/.../manhattan.png, qq.png
-```
-
-## Roadmap (not yet implemented)
-
-- `run_gwas_regenie`: whole genome regression GWAS via Regenie. Step 1 fits the null model; step 2 runs per-chromosome association. Recommended over `run_gwas` for cohorts > 50k samples or severe case-control imbalance.
-- `sanity_check`: sex concordance across phenotype file, .fam, and chrX
-- `plot_kinship`: kinship histogram and IBS0 vs kinship scatter from `.kin0`
-- PRS (clump + threshold, internal and external summary stats)
-- Fine-mapping and conditional analysis
-- Heritability (LDSC, GCTA)
+- `run_gwas_regenie` - whole genome regression for large or imbalanced cohorts
+- `sanity_check` - sex concordance across phenotype, `.fam`, and chrX
+- `plot_kinship` - kinship histogram and IBS0 vs kinship scatter
+- PRS, fine-mapping, heritability (LDSC / GCTA)
+- Self-hosted open-source LLM backend - GPU (vLLM) in progress; CPU (llama.cpp) shelved, needs >8 GB RAM and a model larger than Qwen3-1.7B. See [docs/guide.md](docs/guide.md#self-hosted-llm-backend-experimental).
 - AWS Batch executor
 
 ## Acknowledgements
 
-End-to-end pipeline validation uses the 1000 Genomes EAS dataset from the [GWASTutorial](https://github.com/Cloufield/GWASTutorial) repository by Cloufield et al. The dataset includes 504 East Asian samples, 1.23M variants, and a simulated binary phenotype with planted causal SNPs.
+Pipeline validation uses the 1000 Genomes EAS dataset from [GWASTutorial](https://github.com/Cloufield/GWASTutorial) by Cloufield et al.
 
 ## Compliance note
 
