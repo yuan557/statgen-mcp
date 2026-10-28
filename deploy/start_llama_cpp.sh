@@ -8,8 +8,8 @@
 
 set -e
 
-MODEL_FILE="qwen3-1.7b-q4_k_m.gguf"
-MODEL_REPO="Qwen/Qwen3-1.7B-GGUF"
+MODEL_FILE="Qwen3-1.7B-Q4_K_M.gguf"
+MODEL_REPO="unsloth/Qwen3-1.7B-GGUF"
 N_THREADS=${N_THREADS:-8}   # match vCPU count; override with: N_THREADS=4 bash start_llama_cpp.sh
 
 source llama_env/bin/activate
