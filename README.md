@@ -40,7 +40,9 @@ Point your agent at it with a `.mcp.json` in your project root:
 }
 ```
 
-Then run `claude` (or any MCP-compatible agent) and describe the analysis.
+Then run `claude` (Claude Code) and describe the analysis. Claude Code is the primary, supported way to drive the pipeline.
+
+If you can't send data-adjacent prompts to a hosted model for compliance reasons, a self-hosted open-source backend (AWS GPU inference via vLLM) is under development as an alternative - data stays local, only LLM calls go to your own instance. See [docs/guide.md](docs/guide.md#self-hosted-llm-backend-experimental).
 
 **Full setup, tool reference, pipeline guide, and HPC/SLURM instructions: [docs/guide.md](docs/guide.md).**
 
