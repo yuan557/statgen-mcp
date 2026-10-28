@@ -38,6 +38,13 @@ class AwsConfig:
 
 
 @dataclass
+class LLMConfig:
+    base_url: str = ""           # e.g. http://<ec2-ip>:8000/v1
+    model: str = ""              # e.g. Qwen/Qwen3-4B-AWQ
+    api_key: str = "none"        # vLLM doesn't require a real key
+
+
+@dataclass
 class ToolsConfig:
     plink2: str = "plink2"
     bcftools: str = "bcftools"
@@ -48,6 +55,7 @@ class Config:
     executor: ExecutorConfig = field(default_factory=ExecutorConfig)
     slurm: SlurmConfig = field(default_factory=SlurmConfig)
     aws: AwsConfig = field(default_factory=AwsConfig)
+    llm: LLMConfig = field(default_factory=LLMConfig)
     tools: ToolsConfig = field(default_factory=ToolsConfig)
     output_dir: str = str(Path.home() / "statgen-mcp-runs")
 
@@ -69,6 +77,8 @@ def load_config() -> Config:
         cfg.slurm = SlurmConfig(**raw["slurm"])
     if "aws" in raw:
         cfg.aws = AwsConfig(**raw["aws"])
+    if "llm" in raw:
+        cfg.llm = LLMConfig(**raw["llm"])
     if "tools" in raw:
         cfg.tools = ToolsConfig(**raw["tools"])
     if "output_dir" in raw:

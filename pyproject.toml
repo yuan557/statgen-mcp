@@ -26,6 +26,7 @@ plots = [
     "scipy>=1.10",
     "seaborn>=0.13",
 ]
+llm = ["openai>=1.0"]
 dev = ["pytest", "pytest-asyncio", "ruff"]
 
 [tool.hatch.build.targets.wheel]

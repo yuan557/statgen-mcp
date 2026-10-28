@@ -30,3 +30,10 @@ bcftools = "bcftools"  # required for VCF variant source filtering
 # region = "us-east-1"
 # job_queue = "statgen-queue"
 # job_definition = "statgen-plink2"
+
+
+# Uncomment to use a self-hosted LLM (e.g. Qwen3-4B-AWQ on EC2 via vLLM)
+# [llm]
+# base_url = "http://<ec2-ip>:8000/v1"
+# model = "Qwen/Qwen3-4B-AWQ"
+# api_key = "none"
